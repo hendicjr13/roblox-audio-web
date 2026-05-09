@@ -7,21 +7,23 @@ const ffmpegStatic = require('ffmpeg-static');
 const ytdl = require('@distube/ytdl-core');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 
 ffmpeg.setFfmpegPath(ffmpegStatic);
 
+const TMP = os.tmpdir();
 const app = express();
-const upload = multer({ dest: '/tmp/' });
+const upload = multer({ dest: TMP });
 
 app.use(express.json());
 app.use(express.static('public'));
 
 const previews = {};
 
-function convertAudio(inputPath, outputPath, speed = 0.43) {
+function convertAudio(inputPath, outputPath, speed = 2.3) {
   return new Promise((resolve, reject) => {
     ffmpeg(inputPath)
-      .audioFilters(`atempo=${speed}`)
+      .audioFilters(['atempo=2.0', 'atempo=1.15'])
       .toFormat('ogg')
       .on('end', resolve)
       .on('error', reject)
@@ -54,7 +56,7 @@ app.post('/preview-mp3', upload.single('file'), async (req, res) => {
     const speed = req.body.speed || 0.43;
     const inputPath = req.file.path;
     const previewId = 'prev_' + Date.now();
-    const outputPath = `/tmp/${previewId}.ogg`;
+    const outputPath = path.join(TMP, `${previewId}.ogg`);
 
     await convertAudio(inputPath, outputPath, speed);
     fs.unlinkSync(inputPath);
@@ -76,8 +78,8 @@ app.post('/preview-url', async (req, res) => {
   try {
     const { url, speed = 0.43 } = req.body;
     const previewId = 'prev_' + Date.now();
-    const tmpInput = `/tmp/yt_${Date.now()}.mp3`;
-    const outputPath = `/tmp/${previewId}.ogg`;
+    const tmpInput = path.join(TMP, `yt_${Date.now()}.mp3`);
+    const outputPath = path.join(TMP, `${previewId}.ogg`);
 
     await new Promise((resolve, reject) => {
       const stream = ytdl(url, { filter: 'audioonly', quality: 'highestaudio' });
@@ -115,7 +117,7 @@ app.post('/upload-mp3', upload.single('file'), async (req, res) => {
   try {
     const { apiKey, userId, speed = 0.43 } = req.body;
     const inputPath = req.file.path;
-    const outputPath = `/tmp/out_${Date.now()}.ogg`;
+    const outputPath = path.join(TMP, `out_${Date.now()}.ogg`);
 
     await convertAudio(inputPath, outputPath, speed);
     const result = await uploadToRoblox(outputPath, apiKey, userId);
@@ -133,8 +135,8 @@ app.post('/upload-mp3', upload.single('file'), async (req, res) => {
 app.post('/upload-url', async (req, res) => {
   try {
     const { url, apiKey, userId, speed = 0.43 } = req.body;
-    const tmpInput = `/tmp/yt_${Date.now()}.mp3`;
-    const tmpOutput = `/tmp/out_${Date.now()}.ogg`;
+    const tmpInput = path.join(TMP, `yt_${Date.now()}.mp3`);
+    const tmpOutput = path.join(TMP, `out_${Date.now()}.ogg`);
 
     await new Promise((resolve, reject) => {
       const stream = ytdl(url, { filter: 'audioonly', quality: 'highestaudio' });
