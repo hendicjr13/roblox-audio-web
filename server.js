@@ -4,7 +4,7 @@ const axios = require('axios');
 const FormData = require('form-data');
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegStatic = require('ffmpeg-static');
-const ytdl = require('yt-dlp-exec');
+const ytdl = require('youtube-dl-exec');
 const path = require('path');
 const fs = require('fs');
 
