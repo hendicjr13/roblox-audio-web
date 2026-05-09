@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Roblox Audio Uploader</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0f0f0f; color: #fff; font-family: 'Segoe UI', sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 40px 20px; }
+    h1 { font-size: 1.8rem; margin-bottom: 8px; color: #00d4ff; }
+    p.sub { color: #888; margin-bottom: 30px; font-size: 0.9rem; }
+    .card { background: #1a1a1a; border-radius: 12px; padding: 24px; width: 100%; max-width: 500px; margin-bottom: 20px; }
+    .card h2 { font-size: 1rem; margin-bottom: 16px; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
+    input, select { width: 100%; padding: 12px; background: #111; border: 1px solid #333; border-radius: 8px; color: #fff; margin-bottom: 12px; font-size: 0.95rem; }
+    input::placeholder { color: #555; }
+    .drop-area { border: 2px dashed #333; border-radius: 8px; padding: 30px; text-align: center; cursor: pointer; margin-bottom: 12px; transition: border-color 0.2s; }
+    .drop-area:hover { border-color: #00d4ff; }
+    .drop-area p { color: #555; font-size: 0.9rem; }
+    button { width: 100%; padding: 14px; background: #00d4ff; border: none; border-radius: 8px; color: #000; font-weight: bold; font-size: 1rem; cursor: pointer; transition: background 0.2s; }
+    button:hover { background: #00b8d9; }
+    button:disabled { background: #333; color: #666; cursor: not-allowed; }
+    .status { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 0.9rem; display: none; }
+    .status.success { background: #0d2e1a; color: #00ff88; border: 1px solid #00ff88; }
+    .status.error { background: #2e0d0d; color: #ff4444; border: 1px solid #ff4444; }
+    .status.loading { background: #1a1a2e; color: #00d4ff; border: 1px solid #00d4ff; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+    .tab { flex: 1; padding: 10px; background: #111; border: 1px solid #333; border-radius: 8px; color: #888; cursor: pointer; text-align: center; font-size: 0.9rem; transition: all 0.2s; }
+    .tab.active { background: #00d4ff; color: #000; border-color: #00d4ff; font-weight: bold; }
+    #mp3-section, #url-section { display: none; }
+    #mp3-section.active, #url-section.active { display: block; }
+  </style>
+</head>
+<body>
+  <h1>🎵 Roblox Audio Uploader</h1>
+  <p class="sub">Convert & upload audio langsung ke Roblox</p>
+
+  <div class="card">
+    <h2>Akun Roblox</h2>
+    <input type="text" id="userId" placeholder="Roblox User ID (contoh: 9217554647)">
+    <input type="password" id="apiKey" placeholder="API Key dari Roblox Creator Hub">
+  </div>
+
+  <div class="card">
+    <h2>Audio</h2>
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('url')">YouTube / SoundCloud</div>
+      <div class="tab" onclick="switchTab('mp3')">Upload MP3</div>
+    </div>
+
+    <div id="url-section" class="active">
+      <input type="text" id="audioUrl" placeholder="Paste link YouTube atau SoundCloud...">
+    </div>
+
+    <div id="mp3-section">
+      <div class="drop-area" onclick="document.getElementById('mp3File').click()">
+        <p>🎵 Klik atau drag & drop file MP3</p>
+        <p style="margin-top:8px;font-size:0.8rem;" id="fileName">Maks 15MB</p>
+      </div>
+      <input type="file" id="mp3File" accept=".mp3" style="display:none" onchange="updateFileName(this)">
+    </div>
+
+    <button id="uploadBtn" onclick="handleUpload()">Convert & Upload ke Roblox</button>
+    <div class="status" id="status"></div>
+  </div>
+
+  <script>
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('url-section').classList.remove('active');
+      document.getElementById('mp3-section').classList.remove('active');
+
+      if (tab === 'url') {
+        document.querySelectorAll('.tab')[0].classList.add('active');
+        document.getElementById('url-section').classList.add('active');
+      } else {
+        document.querySelectorAll('.tab')[1].classList.add('active');
+        document.getElementById('mp3-section').classList.add('active');
+      }
+    }
+
+    function updateFileName(input) {
+      if (input.files[0]) {
+        document.getElementById('fileName').textContent = input.files[0].name;
+      }
+    }
+
+    function showStatus(type, msg) {
+      const el = document.getElementById('status');
+      el.className = 'status ' + type;
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    async function handleUpload() {
+      const userId = document.getElementById('userId').value.trim();
+      const apiKey = document.getElementById('apiKey').value.trim();
+
+      if (!userId || !apiKey) {
+        showStatus('error', 'User ID dan API Key wajib diisi!');
+        return;
+      }
+
+      const btn = document.getElementById('uploadBtn');
+      btn.disabled = true;
+      showStatus('loading', 'Sedang convert & upload... Tunggu ya!');
+
+      try {
+        const isUrl = document.getElementById('url-section').classList.contains('active');
+
+        if (isUrl) {
+          const url = document.getElementById('audioUrl').value.trim();
+          if (!url) { showStatus('error', 'URL wajib diisi!'); btn.disabled = false; return; }
+
+          const res = await fetch('/convert-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url, apiKey, userId })
+          });
+          const data = await res.json();
+          if (data.success) showStatus('success', '✅ Berhasil upload! Asset ID: ' + (data.data.assetId || JSON.stringify(data.data)));
+          else showStatus('error', '❌ Gagal: ' + data.error);
+
+        } else {
+          const file = document.getElementById('mp3File').files[0];
+          if (!file) { showStatus('error', 'Pilih file MP3 dulu!'); btn.disabled = false; return; }
+
+          const form = new FormData();
+          form.append('file', file);
+          form.append('apiKey', apiKey);
+          form.append('userId', userId);
+
+          const res = await fetch('/convert-mp3', { method: 'POST', body: form });
+          const data = await res.json();
+          if (data.success) showStatus('success', '✅ Berhasil upload! Asset ID: ' + (data.data.assetId || JSON.stringify(data.data)));
+          else showStatus('error', '❌ Gagal: ' + data.error);
+        }
+      } catch (err) {
+        showStatus('error', '❌ Error: ' + err.message);
+      }
+
+      btn.disabled = false;
+    }
+  </script>
+</body>
+</html>
