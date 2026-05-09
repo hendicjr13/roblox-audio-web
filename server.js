@@ -4,7 +4,7 @@ const axios = require('axios');
 const FormData = require('form-data');
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegStatic = require('ffmpeg-static');
-const ytdl = require('youtube-dl-exec');
+const ytdl = require('@distube/ytdl-core');
 const path = require('path');
 const fs = require('fs');
 
@@ -80,7 +80,12 @@ app.post('/preview-url', async (req, res) => {
     const tmpInput = `uploads/yt_${Date.now()}.mp3`;
     const outputPath = `uploads/${previewId}.ogg`;
 
-    await ytdl(url, { extractAudio: true, audioFormat: 'mp3', output: tmpInput });
+    await new Promise((resolve, reject) => {
+  const stream = ytdl(url, { filter: 'audioonly', quality: 'highestaudio' });
+  stream.pipe(fs.createWriteStream(tmpInput));
+  stream.on('end', resolve);
+  stream.on('error', reject);
+});
     await convertAudio(tmpInput, outputPath, speed);
     fs.unlinkSync(tmpInput);
 
@@ -132,7 +137,12 @@ app.post('/upload-url', async (req, res) => {
     const tmpInput = `uploads/yt_${Date.now()}.mp3`;
     const tmpOutput = tmpInput + '.ogg';
 
-    await ytdl(url, { extractAudio: true, audioFormat: 'mp3', output: tmpInput });
+    await new Promise((resolve, reject) => {
+  const stream = ytdl(url, { filter: 'audioonly', quality: 'highestaudio' });
+  stream.pipe(fs.createWriteStream(tmpInput));
+  stream.on('end', resolve);
+  stream.on('error', reject);
+});
     await convertAudio(tmpInput, tmpOutput, speed);
     const result = await uploadToRoblox(tmpOutput, apiKey, userId);
 
