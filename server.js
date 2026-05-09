@@ -16,11 +16,13 @@ const upload = multer({ dest: 'uploads/' });
 app.use(express.json());
 app.use(express.static('public'));
 
-// Convert audio
-function convertAudio(inputPath, outputPath) {
+// Simpan file preview sementara
+const previews = {};
+
+function convertAudio(inputPath, outputPath, speed = 0.43) {
   return new Promise((resolve, reject) => {
     ffmpeg(inputPath)
-      .audioFilters('atempo=0.43')
+      .audioFilters(`atempo=${speed}`)
       .toFormat('ogg')
       .on('end', resolve)
       .on('error', reject)
@@ -28,7 +30,6 @@ function convertAudio(inputPath, outputPath) {
   });
 }
 
-// Upload ke Roblox
 async function uploadToRoblox(filePath, apiKey, userId) {
   const form = new FormData();
   form.append('request', JSON.stringify({
@@ -48,14 +49,71 @@ async function uploadToRoblox(filePath, apiKey, userId) {
   return res.data;
 }
 
-// Route: upload MP3
-app.post('/convert-mp3', upload.single('file'), async (req, res) => {
+// Route: preview MP3
+app.post('/preview-mp3', upload.single('file'), async (req, res) => {
   try {
-    const { apiKey, userId } = req.body;
+    const speed = req.body.speed || 0.43;
+    const inputPath = req.file.path;
+    const previewId = 'prev_' + Date.now();
+    const outputPath = `uploads/${previewId}.ogg`;
+
+    await convertAudio(inputPath, outputPath, speed);
+    fs.unlinkSync(inputPath);
+
+    previews[previewId] = outputPath;
+    setTimeout(() => {
+      if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+      delete previews[previewId];
+    }, 10 * 60 * 1000); // hapus setelah 10 menit
+
+    res.json({ success: true, previewId });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Route: preview URL
+app.post('/preview-url', async (req, res) => {
+  try {
+    const { url, speed = 0.43 } = req.body;
+    const previewId = 'prev_' + Date.now();
+    const tmpInput = `uploads/yt_${Date.now()}.mp3`;
+    const outputPath = `uploads/${previewId}.ogg`;
+
+    await ytdl(url, { extractAudio: true, audioFormat: 'mp3', output: tmpInput });
+    await convertAudio(tmpInput, outputPath, speed);
+    fs.unlinkSync(tmpInput);
+
+    previews[previewId] = outputPath;
+    setTimeout(() => {
+      if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+      delete previews[previewId];
+    }, 10 * 60 * 1000);
+
+    res.json({ success: true, previewId });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Route: serve preview file
+app.get('/preview/:id', (req, res) => {
+  const filePath = previews[req.params.id];
+  if (!filePath || !fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'Preview not found' });
+  }
+  res.setHeader('Content-Type', 'audio/ogg');
+  fs.createReadStream(filePath).pipe(res);
+});
+
+// Route: upload MP3
+app.post('/upload-mp3', upload.single('file'), async (req, res) => {
+  try {
+    const { apiKey, userId, speed = 0.43 } = req.body;
     const inputPath = req.file.path;
     const outputPath = inputPath + '.ogg';
 
-    await convertAudio(inputPath, outputPath);
+    await convertAudio(inputPath, outputPath, speed);
     const result = await uploadToRoblox(outputPath, apiKey, userId);
 
     fs.unlinkSync(inputPath);
@@ -67,15 +125,15 @@ app.post('/convert-mp3', upload.single('file'), async (req, res) => {
   }
 });
 
-// Route: YouTube/SoundCloud
-app.post('/convert-url', async (req, res) => {
+// Route: upload URL
+app.post('/upload-url', async (req, res) => {
   try {
-    const { url, apiKey, userId } = req.body;
+    const { url, apiKey, userId, speed = 0.43 } = req.body;
     const tmpInput = `uploads/yt_${Date.now()}.mp3`;
     const tmpOutput = tmpInput + '.ogg';
 
     await ytdl(url, { extractAudio: true, audioFormat: 'mp3', output: tmpInput });
-    await convertAudio(tmpInput, tmpOutput);
+    await convertAudio(tmpInput, tmpOutput, speed);
     const result = await uploadToRoblox(tmpOutput, apiKey, userId);
 
     fs.unlinkSync(tmpInput);
@@ -86,6 +144,8 @@ app.post('/convert-url', async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log('Server running on port ' + PORT));
