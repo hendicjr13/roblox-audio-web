@@ -9,7 +9,7 @@
     body { background: #0f0f0f; color: #fff; font-family: 'Segoe UI', sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 40px 20px; }
     h1 { font-size: 1.8rem; margin-bottom: 8px; color: #00d4ff; }
     p.sub { color: #888; margin-bottom: 30px; font-size: 0.9rem; }
-    .card { background: #1a1a1a; border-radius: 12px; padding: 24px; width: 100%; max-width: 520px; margin-bottom: 20px; }
+    .card { background: #1a1a1a; border-radius: 12px; padding: 24px; width: 100%; max-width: 540px; margin-bottom: 20px; }
     .card h2 { font-size: 0.85rem; margin-bottom: 16px; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
     input[type=text], input[type=password] { width: 100%; padding: 12px; background: #111; border: 1px solid #333; border-radius: 8px; color: #fff; margin-bottom: 12px; font-size: 0.95rem; }
     input::placeholder { color: #555; }
@@ -34,12 +34,22 @@
     .drop-area { border: 2px dashed #333; border-radius: 8px; padding: 30px; text-align: center; cursor: pointer; margin-bottom: 16px; transition: border-color 0.2s; }
     .drop-area:hover { border-color: #00d4ff; }
     .drop-area p { color: #555; font-size: 0.9rem; }
-    .speed-section { margin-bottom: 16px; }
-    .speed-label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-    .speed-label-row span { color: #aaa; font-size: 0.9rem; }
-    .speed-value-big { font-size: 1.4rem; font-weight: bold; color: #00d4ff; }
-    input[type=range] { width: 100%; accent-color: #00d4ff; height: 6px; margin-bottom: 8px; cursor: pointer; }
-    .speed-ticks { display: flex; justify-content: space-between; font-size: 0.7rem; color: #555; margin-bottom: 12px; }
+
+    /* Preset buttons */
+    .preset-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+    .preset-btn { padding: 7px 14px; border-radius: 20px; border: 1px solid #444; background: #111; color: #aaa; font-size: 0.82rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+    .preset-btn:hover { border-color: #00d4ff; color: #00d4ff; }
+    .preset-btn.active { background: #00d4ff; color: #000; border-color: #00d4ff; font-weight: bold; }
+
+    /* Sliders */
+    .slider-group { margin-bottom: 18px; }
+    .slider-label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .slider-label-row span { color: #aaa; font-size: 0.88rem; }
+    .slider-val { font-weight: bold; color: #00d4ff; font-size: 1rem; min-width: 52px; text-align: right; }
+    input[type=range] { width: 100%; accent-color: #00d4ff; height: 6px; margin-bottom: 4px; cursor: pointer; }
+    .slider-ticks { display: flex; justify-content: space-between; font-size: 0.68rem; color: #444; }
+
+    /* Info box */
     .info-box { background: #0d1f2e; border: 1px solid #00d4ff33; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
     .info-box .info-title { font-size: 0.75rem; color: #00d4ff; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
     .info-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
@@ -50,12 +60,14 @@
     .val-green { color: #00ff88; }
     .val-yellow { color: #ffd600; }
     .divider { border: none; border-top: 1px solid #222; margin: 10px 0; }
-    .roblox-tip { background: #1a1a0d; border: 1px solid #ffd60033; border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 0.85rem; color: #ffd600; line-height: 1.5; }
+    .roblox-tip { background: #1a1a0d; border: 1px solid #ffd60033; border-radius: 8px; padding: 12px; margin-bottom: 0; font-size: 0.85rem; color: #ffd600; line-height: 1.5; }
     .roblox-tip strong { display: block; margin-bottom: 4px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.7; }
+
+    /* Toggle */
     .toggle-row { display: flex; align-items: center; justify-content: space-between; background: #111; border: 1px solid #333; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; cursor: pointer; transition: border-color 0.2s; }
     .toggle-row:hover { border-color: #555; }
-    .toggle-row .toggle-label { font-size: 0.9rem; color: #ccc; }
-    .toggle-row .toggle-label small { display: block; color: #555; font-size: 0.78rem; margin-top: 2px; }
+    .toggle-label { font-size: 0.9rem; color: #ccc; }
+    .toggle-label small { display: block; color: #555; font-size: 0.78rem; margin-top: 2px; }
     .toggle-switch { position: relative; width: 42px; height: 24px; flex-shrink: 0; }
     .toggle-switch input { opacity: 0; width: 0; height: 0; }
     .toggle-slider { position: absolute; inset: 0; background: #333; border-radius: 24px; transition: background 0.2s; }
@@ -69,12 +81,14 @@
   <h1>🎵 Roblox Audio Uploader</h1>
   <p class="sub">Convert, preview & upload audio langsung ke Roblox</p>
 
+  <!-- Akun -->
   <div class="card">
     <h2>🔑 Akun Roblox</h2>
     <input type="text" id="userId" placeholder="Roblox User ID (contoh: 9217554647)">
     <input type="password" id="apiKey" placeholder="API Key dari Roblox Creator Hub">
   </div>
 
+  <!-- Sumber Audio -->
   <div class="card">
     <h2>🎵 Sumber Audio</h2>
     <div class="tabs">
@@ -94,8 +108,10 @@
     <input type="text" id="displayName" placeholder="Nama audio di Roblox (opsional)">
   </div>
 
+  <!-- Speed Config -->
   <div class="card">
-    <h2>⚙️ Konfigurasi Speed</h2>
+    <h2>⚙️ Advanced Settings</h2>
+
     <label class="toggle-row" onclick="toggleAsIs()">
       <div class="toggle-label">
         Upload tanpa ubah speed
@@ -106,17 +122,51 @@
         <div class="toggle-slider"></div>
       </div>
     </label>
+
     <div id="speedControls">
-      <div class="speed-section">
-        <div class="speed-label-row">
-          <span>PlaybackSpeed di Roblox Module:</span>
-          <span class="speed-value-big" id="speedDisplay">0.43x</span>
-        </div>
-        <input type="range" id="speedSlider" min="0.40" max="1.00" step="0.01" value="0.43" oninput="updateSpeed(this.value)">
-        <div class="speed-ticks">
-          <span>0.40x</span><span>0.55x</span><span>0.70x</span><span>0.85x</span><span>1.00x</span>
+      <!-- Preset -->
+      <div style="margin-bottom:10px;">
+        <div style="font-size:0.8rem;color:#666;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">Preset</div>
+        <div class="preset-row">
+          <div class="preset-btn" onclick="applyPreset(2.1, -2)">Lambat 2.1x</div>
+          <div class="preset-btn active" onclick="applyPreset(2.3, -4)">Default 2.3x</div>
+          <div class="preset-btn" onclick="applyPreset(2.5, -5)">Cepat 2.5x</div>
+          <div class="preset-btn" onclick="applyPreset(2.7, -6)">Lebih Cepat 2.7x</div>
+          <div class="preset-btn" onclick="applyPreset(2.9, -7)">Ultra 2.9x</div>
         </div>
       </div>
+
+      <!-- Slider Kecepatan -->
+      <div class="slider-group">
+        <div class="slider-label-row">
+          <span>PlaybackSpeed di Roblox Module</span>
+          <span class="slider-val" id="speedDisplay">0.43x</span>
+        </div>
+        <input type="range" id="speedSlider" min="0.34" max="1.00" step="0.01" value="0.43" oninput="onSpeedSlider(this.value)">
+        <div class="slider-ticks"><span>0.34x</span><span>0.50x</span><span>0.67x</span><span>0.83x</span><span>1.00x</span></div>
+      </div>
+
+      <!-- Slider Amplifikasi -->
+      <div class="slider-group">
+        <div class="slider-label-row">
+          <span>Amplifikasi (dB)</span>
+          <span class="slider-val" id="ampDisplay">-4 dB</span>
+        </div>
+        <input type="range" id="ampSlider" min="-12" max="0" step="0.5" value="-4" oninput="onAmpSlider(this.value)">
+        <div class="slider-ticks"><span>-12 dB</span><span>-9 dB</span><span>-6 dB</span><span>-3 dB</span><span>0 dB</span></div>
+      </div>
+
+      <!-- Slider Durasi Maks -->
+      <div class="slider-group">
+        <div class="slider-label-row">
+          <span>Durasi Maks (detik)</span>
+          <span class="slider-val" id="durDisplay">400s</span>
+        </div>
+        <input type="range" id="durSlider" min="30" max="400" step="10" value="400" oninput="onDurSlider(this.value)">
+        <div class="slider-ticks"><span>30s</span><span>130s</span><span>215s</span><span>310s</span><span>400s</span></div>
+      </div>
+
+      <!-- Info Box -->
       <div class="info-box">
         <div class="info-title">📊 Kalkulasi Otomatis</div>
         <div class="info-row">
@@ -124,12 +174,12 @@
           <span class="val val-blue" id="infoPlayback">0.43x</span>
         </div>
         <div class="info-row">
-          <span class="lbl">Lagu harus di-speed up</span>
+          <span class="lbl">Lagu di-speed up</span>
           <span class="val val-green" id="infoSpeedUp">2.33x</span>
         </div>
         <div class="info-row">
-          <span class="lbl">Setara persentase</span>
-          <span class="val val-yellow" id="infoPercent">+132.56%</span>
+          <span class="lbl">Amplifikasi</span>
+          <span class="val val-yellow" id="infoAmp">-4 dB</span>
         </div>
         <hr class="divider">
         <div class="info-row">
@@ -137,6 +187,7 @@
           <span class="val val-green">✅ Normal (1.00x)</span>
         </div>
       </div>
+
       <div class="roblox-tip">
         <strong>💡 Setting di Roblox Studio</strong>
         Set <code>PlaybackSpeed</code> di Music Module kamu ke <strong id="tipSpeed">0.43</strong>
@@ -144,11 +195,12 @@
     </div>
   </div>
 
+  <!-- Action -->
   <div class="card">
     <h2>🚀 Action</h2>
     <button class="btn btn-primary" id="previewBtn" onclick="handlePreview()">🎧 Convert & Preview</button>
     <div class="player" id="playerBox">
-      <p>Preview hasil convert:</p>
+      <p>Preview hasil convert (dengerin dulu sebelum upload):</p>
       <audio id="audioPlayer" controls></audio>
     </div>
     <button class="btn btn-success" id="uploadBtn" onclick="handleUpload()" style="display:none">🚀 Upload ke Roblox</button>
@@ -158,6 +210,56 @@
   <script>
     let currentTab = 'url';
     let isAsIs = false;
+    let currentSpeed = 0.43;
+    let currentAmp = -4;
+    let currentDur = 400;
+
+    const PRESETS = [
+      { speed: 2.1, amp: -2 },
+      { speed: 2.3, amp: -4 },
+      { speed: 2.5, amp: -5 },
+      { speed: 2.7, amp: -6 },
+      { speed: 2.9, amp: -7 },
+    ];
+
+    function applyPreset(speedFactor, amp) {
+      // Convert speedFactor to robloxPlayback
+      const robloxPlayback = (1 / speedFactor).toFixed(2);
+      document.getElementById('speedSlider').value = robloxPlayback;
+      document.getElementById('ampSlider').value = amp;
+      onSpeedSlider(robloxPlayback, false);
+      onAmpSlider(amp);
+      // Highlight active preset
+      document.querySelectorAll('.preset-btn').forEach(b => {
+        const sf = parseFloat(b.textContent);
+        b.classList.toggle('active', Math.abs(sf - speedFactor) < 0.05);
+      });
+      resetPlayer();
+    }
+
+    function onSpeedSlider(val, clearPreset = true) {
+      currentSpeed = parseFloat(val);
+      const speedUp = 1 / currentSpeed;
+      document.getElementById('speedDisplay').textContent = currentSpeed.toFixed(2) + 'x';
+      document.getElementById('infoPlayback').textContent = currentSpeed.toFixed(2) + 'x';
+      document.getElementById('infoSpeedUp').textContent = speedUp.toFixed(2) + 'x';
+      document.getElementById('tipSpeed').textContent = currentSpeed.toFixed(2);
+      if (clearPreset) document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+      resetPlayer();
+    }
+
+    function onAmpSlider(val) {
+      currentAmp = parseFloat(val);
+      document.getElementById('ampDisplay').textContent = (currentAmp >= 0 ? '+' : '') + currentAmp + ' dB';
+      document.getElementById('infoAmp').textContent = (currentAmp >= 0 ? '+' : '') + currentAmp + ' dB';
+      resetPlayer();
+    }
+
+    function onDurSlider(val) {
+      currentDur = parseInt(val);
+      document.getElementById('durDisplay').textContent = currentDur + 's';
+      resetPlayer();
+    }
 
     function switchTab(tab) {
       currentTab = tab;
@@ -174,18 +276,6 @@
         document.getElementById('speedControls').classList.toggle('speed-dimmed', isAsIs);
         resetPlayer();
       }, 0);
-    }
-
-    function updateSpeed(val) {
-      const v = parseFloat(val);
-      const speedUp = 1 / v;
-      const pct = (speedUp - 1) * 100;
-      document.getElementById('speedDisplay').textContent = v.toFixed(2) + 'x';
-      document.getElementById('infoPlayback').textContent = v.toFixed(2) + 'x';
-      document.getElementById('infoSpeedUp').textContent = speedUp.toFixed(2) + 'x';
-      document.getElementById('infoPercent').textContent = '+' + pct.toFixed(2) + '%';
-      document.getElementById('tipSpeed').textContent = v.toFixed(2);
-      resetPlayer();
     }
 
     function updateFileName(input) {
@@ -205,8 +295,16 @@
       document.getElementById('audioPlayer').src = '';
     }
 
+    function getPayload() {
+      return {
+        robloxPlayback: currentSpeed,
+        asIs: isAsIs,
+        amplify: currentAmp,
+        maxDuration: currentDur,
+      };
+    }
+
     async function handlePreview() {
-      const robloxPlayback = document.getElementById('speedSlider').value;
       const btn = document.getElementById('previewBtn');
       btn.disabled = true;
       showStatus('loading', 'Sedang convert audio... Tunggu ya!');
@@ -214,13 +312,15 @@
 
       try {
         let previewId;
+        const payload = getPayload();
+
         if (currentTab === 'url') {
           const url = document.getElementById('audioUrl').value.trim();
           if (!url) { showStatus('error', 'URL wajib diisi!'); btn.disabled = false; return; }
           const res = await fetch('/preview-url', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url, robloxPlayback, asIs: isAsIs })
+            body: JSON.stringify({ url, ...payload })
           });
           const data = await res.json();
           if (!data.success) { showStatus('error', '❌ ' + data.error); btn.disabled = false; return; }
@@ -230,8 +330,7 @@
           if (!file) { showStatus('error', 'Pilih file MP3 dulu!'); btn.disabled = false; return; }
           const form = new FormData();
           form.append('file', file);
-          form.append('robloxPlayback', robloxPlayback);
-          form.append('asIs', isAsIs);
+          Object.entries(payload).forEach(([k, v]) => form.append(k, v));
           const res = await fetch('/preview-mp3', { method: 'POST', body: form });
           const data = await res.json();
           if (!data.success) { showStatus('error', '❌ ' + data.error); btn.disabled = false; return; }
@@ -251,9 +350,7 @@
     async function handleUpload() {
       const userId = document.getElementById('userId').value.trim();
       const apiKey = document.getElementById('apiKey').value.trim();
-      const robloxPlayback = document.getElementById('speedSlider').value;
       const displayName = document.getElementById('displayName').value.trim();
-
       if (!userId || !apiKey) { showStatus('error', 'User ID dan API Key wajib diisi!'); return; }
 
       const btn = document.getElementById('uploadBtn');
@@ -261,13 +358,15 @@
       showStatus('loading', 'Sedang upload ke Roblox...');
 
       try {
+        const payload = getPayload();
         let res;
+
         if (currentTab === 'url') {
           const url = document.getElementById('audioUrl').value.trim();
           res = await fetch('/upload-url', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url, apiKey, userId, robloxPlayback, asIs: isAsIs, displayName })
+            body: JSON.stringify({ url, apiKey, userId, displayName, ...payload })
           });
         } else {
           const file = document.getElementById('mp3File').files[0];
@@ -275,9 +374,8 @@
           form.append('file', file);
           form.append('apiKey', apiKey);
           form.append('userId', userId);
-          form.append('robloxPlayback', robloxPlayback);
-          form.append('asIs', isAsIs);
           form.append('displayName', displayName);
+          Object.entries(payload).forEach(([k, v]) => form.append(k, v));
           res = await fetch('/upload-mp3', { method: 'POST', body: form });
         }
 
@@ -294,7 +392,8 @@
       btn.disabled = false;
     }
 
-    updateSpeed(0.43);
+    // Init
+    applyPreset(2.3, -4);
   </script>
 </body>
 </html>
