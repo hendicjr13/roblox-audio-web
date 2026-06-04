@@ -4,7 +4,6 @@ const axios = require('axios');
 const FormData = require('form-data');
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegStatic = require('ffmpeg-static');
-const ytdl = require('@distube/ytdl-core');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -20,10 +19,29 @@ app.use(express.static('public'));
 
 const previews = {};
 
-function convertAudio(inputPath, outputPath, speed = 2.3) {
+// Hitung speed up factor dari playback speed Roblox
+function calcSpeedFactor(robloxPlayback) {
+  return 1 / parseFloat(robloxPlayback);
+}
+
+// FFmpeg atempo max 2.0 per filter, jadi kalau > 2.0 harus chain
+function buildAtempoFilters(speedFactor) {
+  const filters = [];
+  let remaining = speedFactor;
+  while (remaining > 2.0) {
+    filters.push('atempo=2.0');
+    remaining /= 2.0;
+  }
+  filters.push(`atempo=${remaining.toFixed(6)}`);
+  return filters;
+}
+
+function convertAudio(inputPath, outputPath, robloxPlayback) {
+  const speedFactor = calcSpeedFactor(robloxPlayback);
+  const filters = buildAtempoFilters(speedFactor);
   return new Promise((resolve, reject) => {
     ffmpeg(inputPath)
-      .audioFilters(['atempo=2.0', 'atempo=1.15'])
+      .audioFilters(filters)
       .toFormat('ogg')
       .on('end', resolve)
       .on('error', reject)
@@ -53,42 +71,13 @@ async function uploadToRoblox(filePath, apiKey, userId) {
 // Route: preview MP3
 app.post('/preview-mp3', upload.single('file'), async (req, res) => {
   try {
-    const speed = req.body.speed || 0.43;
+    const robloxPlayback = req.body.robloxPlayback || 0.43;
     const inputPath = req.file.path;
     const previewId = 'prev_' + Date.now();
     const outputPath = path.join(TMP, `${previewId}.ogg`);
 
-    await convertAudio(inputPath, outputPath, speed);
+    await convertAudio(inputPath, outputPath, robloxPlayback);
     fs.unlinkSync(inputPath);
-
-    previews[previewId] = outputPath;
-    setTimeout(() => {
-      if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
-      delete previews[previewId];
-    }, 10 * 60 * 1000);
-
-    res.json({ success: true, previewId });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// Route: preview URL
-app.post('/preview-url', async (req, res) => {
-  try {
-    const { url, speed = 0.43 } = req.body;
-    const previewId = 'prev_' + Date.now();
-    const tmpInput = path.join(TMP, `yt_${Date.now()}.mp3`);
-    const outputPath = path.join(TMP, `${previewId}.ogg`);
-
-    await new Promise((resolve, reject) => {
-      const stream = ytdl(url, { filter: 'audioonly', quality: 'highestaudio' });
-      stream.pipe(fs.createWriteStream(tmpInput));
-      stream.on('end', resolve);
-      stream.on('error', reject);
-    });
-    await convertAudio(tmpInput, outputPath, speed);
-    fs.unlinkSync(tmpInput);
 
     previews[previewId] = outputPath;
     setTimeout(() => {
@@ -115,40 +104,15 @@ app.get('/preview/:id', (req, res) => {
 // Route: upload MP3
 app.post('/upload-mp3', upload.single('file'), async (req, res) => {
   try {
-    const { apiKey, userId, speed = 0.43 } = req.body;
+    const { apiKey, userId, robloxPlayback = 0.43 } = req.body;
     const inputPath = req.file.path;
     const outputPath = path.join(TMP, `out_${Date.now()}.ogg`);
 
-    await convertAudio(inputPath, outputPath, speed);
+    await convertAudio(inputPath, outputPath, robloxPlayback);
     const result = await uploadToRoblox(outputPath, apiKey, userId);
 
     fs.unlinkSync(inputPath);
     fs.unlinkSync(outputPath);
-
-    res.json({ success: true, data: result });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// Route: upload URL
-app.post('/upload-url', async (req, res) => {
-  try {
-    const { url, apiKey, userId, speed = 0.43 } = req.body;
-    const tmpInput = path.join(TMP, `yt_${Date.now()}.mp3`);
-    const tmpOutput = path.join(TMP, `out_${Date.now()}.ogg`);
-
-    await new Promise((resolve, reject) => {
-      const stream = ytdl(url, { filter: 'audioonly', quality: 'highestaudio' });
-      stream.pipe(fs.createWriteStream(tmpInput));
-      stream.on('end', resolve);
-      stream.on('error', reject);
-    });
-    await convertAudio(tmpInput, tmpOutput, speed);
-    const result = await uploadToRoblox(tmpOutput, apiKey, userId);
-
-    fs.unlinkSync(tmpInput);
-    fs.unlinkSync(tmpOutput);
 
     res.json({ success: true, data: result });
   } catch (err) {
