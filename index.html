@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Roblox Audio Uploader</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0f0f0f; color: #fff; font-family: 'Segoe UI', sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 40px 20px; }
+    h1 { font-size: 1.8rem; margin-bottom: 8px; color: #00d4ff; }
+    p.sub { color: #888; margin-bottom: 30px; font-size: 0.9rem; }
+    .card { background: #1a1a1a; border-radius: 12px; padding: 24px; width: 100%; max-width: 520px; margin-bottom: 20px; }
+    .card h2 { font-size: 0.85rem; margin-bottom: 16px; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
+    input[type=text], input[type=password] { width: 100%; padding: 12px; background: #111; border: 1px solid #333; border-radius: 8px; color: #fff; margin-bottom: 12px; font-size: 0.95rem; }
+    input::placeholder { color: #555; }
+    .drop-area { border: 2px dashed #333; border-radius: 8px; padding: 30px; text-align: center; cursor: pointer; margin-bottom: 16px; transition: border-color 0.2s; }
+    .drop-area:hover { border-color: #00d4ff; }
+    .drop-area p { color: #555; font-size: 0.9rem; }
+    .btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; transition: background 0.2s; margin-bottom: 10px; }
+    .btn-primary { background: #00d4ff; color: #000; }
+    .btn-primary:hover { background: #00b8d9; }
+    .btn-success { background: #00c853; color: #000; }
+    .btn-success:hover { background: #00b348; }
+    .btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+    .status { margin-top: 8px; padding: 12px; border-radius: 8px; font-size: 0.9rem; display: none; }
+    .status.success { background: #0d2e1a; color: #00ff88; border: 1px solid #00ff88; }
+    .status.error { background: #2e0d0d; color: #ff4444; border: 1px solid #ff4444; }
+    .status.loading { background: #1a1a2e; color: #00d4ff; border: 1px solid #00d4ff; }
+    .player { background: #111; border-radius: 8px; padding: 16px; margin-bottom: 12px; display: none; }
+    .player p { color: #aaa; font-size: 0.85rem; margin-bottom: 8px; }
+    audio { width: 100%; }
+
+    /* Speed Slider Section */
+    .speed-section { margin-bottom: 20px; }
+    .speed-label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .speed-label-row span { color: #aaa; font-size: 0.9rem; }
+    .speed-value-big { font-size: 1.4rem; font-weight: bold; color: #00d4ff; }
+    input[type=range] { width: 100%; accent-color: #00d4ff; height: 6px; margin-bottom: 8px; cursor: pointer; }
+    .speed-ticks { display: flex; justify-content: space-between; font-size: 0.7rem; color: #555; margin-bottom: 16px; }
+
+    /* Info box */
+    .info-box { background: #0d1f2e; border: 1px solid #00d4ff33; border-radius: 10px; padding: 16px; margin-bottom: 0; }
+    .info-box .info-title { font-size: 0.75rem; color: #00d4ff; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+    .info-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .info-row:last-child { margin-bottom: 0; }
+    .info-row .lbl { color: #888; font-size: 0.85rem; }
+    .info-row .val { font-weight: bold; font-size: 0.95rem; }
+    .val-blue { color: #00d4ff; }
+    .val-green { color: #00ff88; }
+    .val-yellow { color: #ffd600; }
+    .divider { border: none; border-top: 1px solid #222; margin: 10px 0; }
+    .roblox-tip { background: #1a1a0d; border: 1px solid #ffd60033; border-radius: 8px; padding: 12px; margin-top: 12px; font-size: 0.85rem; color: #ffd600; line-height: 1.5; }
+    .roblox-tip strong { display: block; margin-bottom: 4px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.7; }
+  </style>
+</head>
+<body>
+  <h1>🎵 Roblox Audio Uploader</h1>
+  <p class="sub">Convert & upload audio ke Roblox dengan speed yang tepat</p>
+
+  <!-- Roblox Playback Speed Config -->
+  <div class="card">
+    <h2>⚙️ Konfigurasi Playback Speed Roblox</h2>
+    <div class="speed-section">
+      <div class="speed-label-row">
+        <span>Playback Speed di Roblox Module:</span>
+        <span class="speed-value-big" id="speedDisplay">0.43x</span>
+      </div>
+      <input type="range" id="speedSlider" min="0.40" max="1.00" step="0.01" value="0.43" oninput="updateSpeed(this.value)">
+      <div class="speed-ticks">
+        <span>0.40x</span>
+        <span>0.55x</span>
+        <span>0.70x</span>
+        <span>0.85x</span>
+        <span>1.00x</span>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <div class="info-title">📊 Kalkulasi Otomatis</div>
+      <div class="info-row">
+        <span class="lbl">Playback Speed (Roblox)</span>
+        <span class="val val-blue" id="infoPlayback">0.43x</span>
+      </div>
+      <div class="info-row">
+        <span class="lbl">Lagu harus di-speed up</span>
+        <span class="val val-green" id="infoSpeedUp">2.33x</span>
+      </div>
+      <div class="info-row">
+        <span class="lbl">Setara persentase (+%)</span>
+        <span class="val val-yellow" id="infoPercent">+132.56%</span>
+      </div>
+      <hr class="divider">
+      <div class="info-row">
+        <span class="lbl">Hasil di Roblox</span>
+        <span class="val val-green">✅ Normal (1.00x)</span>
+      </div>
+    </div>
+
+    <div class="roblox-tip">
+      <strong>💡 Cara pakai di Roblox Studio</strong>
+      Set <code>PlaybackSpeed</code> di Music Module kamu ke <strong id="tipSpeed">0.43</strong> — lagu yang sudah di-convert akan terdengar normal.
+    </div>
+  </div>
+
+  <!-- Akun Roblox -->
+  <div class="card">
+    <h2>🔑 Akun Roblox</h2>
+    <input type="text" id="userId" placeholder="Roblox User ID (contoh: 9217554647)">
+    <input type="password" id="apiKey" placeholder="API Key dari Roblox Creator Hub">
+  </div>
+
+  <!-- Upload Audio -->
+  <div class="card">
+    <h2>🎵 Upload Audio</h2>
+    <div class="drop-area" onclick="document.getElementById('mp3File').click()">
+      <p>🎵 Klik atau drag & drop file MP3</p>
+      <p style="margin-top:8px;font-size:0.8rem;" id="fileName">Maks 15MB</p>
+    </div>
+    <input type="file" id="mp3File" accept=".mp3" style="display:none" onchange="updateFileName(this)">
+
+    <button class="btn btn-primary" id="previewBtn" onclick="handlePreview()">🎧 Convert & Preview</button>
+
+    <div class="player" id="playerBox">
+      <p>Preview hasil convert (harusnya kedengeran normal di Roblox):</p>
+      <audio id="audioPlayer" controls></audio>
+    </div>
+
+    <button class="btn btn-success" id="uploadBtn" onclick="handleUpload()" style="display:none">🚀 Upload ke Roblox</button>
+    <div class="status" id="status"></div>
+  </div>
+
+  <script>
+    let currentPreviewId = null;
+
+    function updateSpeed(val) {
+      const v = parseFloat(val);
+      const speedUp = 1 / v;
+      const pct = (speedUp - 1) * 100;
+
+      document.getElementById('speedDisplay').textContent = v.toFixed(2) + 'x';
+      document.getElementById('infoPlayback').textContent = v.toFixed(2) + 'x';
+      document.getElementById('infoSpeedUp').textContent = speedUp.toFixed(2) + 'x';
+      document.getElementById('infoPercent').textContent = '+' + pct.toFixed(2) + '%';
+      document.getElementById('tipSpeed').textContent = v.toFixed(2);
+
+      resetPlayer();
+    }
+
+    function updateFileName(input) {
+      if (input.files[0]) document.getElementById('fileName').textContent = input.files[0].name;
+    }
+
+    function showStatus(type, msg) {
+      const el = document.getElementById('status');
+      el.className = 'status ' + type;
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    function resetPlayer() {
+      document.getElementById('playerBox').style.display = 'none';
+      document.getElementById('uploadBtn').style.display = 'none';
+      document.getElementById('audioPlayer').src = '';
+      currentPreviewId = null;
+    }
+
+    async function handlePreview() {
+      const robloxPlayback = document.getElementById('speedSlider').value;
+      const file = document.getElementById('mp3File').files[0];
+      if (!file) { showStatus('error', 'Pilih file MP3 dulu!'); return; }
+
+      const btn = document.getElementById('previewBtn');
+      btn.disabled = true;
+      showStatus('loading', 'Sedang convert audio... Tunggu ya!');
+      resetPlayer();
+
+      try {
+        const form = new FormData();
+        form.append('file', file);
+        form.append('robloxPlayback', robloxPlayback);
+
+        const res = await fetch('/preview-mp3', { method: 'POST', body: form });
+        const data = await res.json();
+        if (!data.success) { showStatus('error', '❌ ' + data.error); btn.disabled = false; return; }
+
+        currentPreviewId = data.previewId;
+        const player = document.getElementById('audioPlayer');
+        player.src = `/preview/${data.previewId}`;
+        document.getElementById('playerBox').style.display = 'block';
+        document.getElementById('uploadBtn').style.display = 'block';
+        showStatus('success', '✅ Convert selesai! Dengerin dulu, kalau oke klik Upload.');
+      } catch (err) {
+        showStatus('error', '❌ Error: ' + err.message);
+      }
+
+      btn.disabled = false;
+    }
+
+    async function handleUpload() {
+      const userId = document.getElementById('userId').value.trim();
+      const apiKey = document.getElementById('apiKey').value.trim();
+      const robloxPlayback = document.getElementById('speedSlider').value;
+
+      if (!userId || !apiKey) { showStatus('error', 'User ID dan API Key wajib diisi!'); return; }
+
+      const file = document.getElementById('mp3File').files[0];
+      if (!file) { showStatus('error', 'Pilih file MP3 dulu!'); return; }
+
+      const btn = document.getElementById('uploadBtn');
+      btn.disabled = true;
+      showStatus('loading', 'Sedang upload ke Roblox...');
+
+      try {
+        const form = new FormData();
+        form.append('file', file);
+        form.append('apiKey', apiKey);
+        form.append('userId', userId);
+        form.append('robloxPlayback', robloxPlayback);
+
+        const res = await fetch('/upload-mp3', { method: 'POST', body: form });
+        const data = await res.json();
+        if (data.success) showStatus('success', '✅ Berhasil upload! Asset ID: ' + (data.data.assetId || JSON.stringify(data.data)));
+        else showStatus('error', '❌ Gagal: ' + data.error);
+      } catch (err) {
+        showStatus('error', '❌ Error: ' + err.message);
+      }
+
+      btn.disabled = false;
+    }
+
+    // Init
+    updateSpeed(0.43);
+  </script>
+</body>
+</html>
