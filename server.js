@@ -31,15 +31,27 @@ function buildAtempoFilters(speedFactor) {
   return filters;
 }
 
-function convertAudio(inputPath, outputPath, robloxPlayback, asIs = false) {
+function convertAudio(inputPath, outputPath, options = {}) {
+  const { robloxPlayback = 0.43, asIs = false, amplify = -4, maxDuration = 400 } = options;
+
   return new Promise((resolve, reject) => {
-    const cmd = ffmpeg(inputPath).toFormat('ogg');
+    const cmd = ffmpeg(inputPath);
+
+    // Trim to max duration
+    cmd.setDuration(maxDuration);
+
     if (!asIs) {
       const speedFactor = 1 / parseFloat(robloxPlayback);
       const filters = buildAtempoFilters(speedFactor);
+      // Add amplify filter
+      filters.push(`volume=${amplify}dB`);
       cmd.audioFilters(filters);
     }
-    cmd.on('end', resolve).on('error', reject).save(outputPath);
+
+    cmd.toFormat('ogg')
+      .on('end', resolve)
+      .on('error', reject)
+      .save(outputPath);
   });
 }
 
@@ -71,22 +83,35 @@ async function uploadToRoblox(filePath, apiKey, userId, displayName) {
   return res.data;
 }
 
+function parseOptions(body) {
+  return {
+    robloxPlayback: parseFloat(body.robloxPlayback) || 0.43,
+    asIs: body.asIs === 'true' || body.asIs === true,
+    amplify: parseFloat(body.amplify ?? -4),
+    maxDuration: parseInt(body.maxDuration) || 400,
+  };
+}
+
+function scheduleDelete(filePath) {
+  setTimeout(() => {
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  }, 10 * 60 * 1000);
+}
+
 // Preview MP3
 app.post('/preview-mp3', upload.single('file'), async (req, res) => {
   try {
-    const { robloxPlayback = 0.43, asIs = 'false' } = req.body;
+    const options = parseOptions(req.body);
     const inputPath = req.file.path;
     const previewId = 'prev_' + Date.now();
     const outputPath = path.join(TMP, `${previewId}.ogg`);
 
-    await convertAudio(inputPath, outputPath, robloxPlayback, asIs === 'true');
+    await convertAudio(inputPath, outputPath, options);
     fs.unlinkSync(inputPath);
 
     previews[previewId] = outputPath;
-    setTimeout(() => {
-      if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
-      delete previews[previewId];
-    }, 10 * 60 * 1000);
+    scheduleDelete(outputPath);
+    setTimeout(() => delete previews[previewId], 10 * 60 * 1000);
 
     res.json({ success: true, previewId });
   } catch (err) {
@@ -97,20 +122,19 @@ app.post('/preview-mp3', upload.single('file'), async (req, res) => {
 // Preview URL
 app.post('/preview-url', async (req, res) => {
   try {
-    const { url, robloxPlayback = 0.43, asIs = false } = req.body;
+    const options = parseOptions(req.body);
+    const { url } = req.body;
     const previewId = 'prev_' + Date.now();
     const tmpInput = path.join(TMP, `yt_${Date.now()}.mp3`);
     const outputPath = path.join(TMP, `${previewId}.ogg`);
 
     await downloadYoutube(url, tmpInput);
-    await convertAudio(tmpInput, outputPath, robloxPlayback, asIs);
+    await convertAudio(tmpInput, outputPath, options);
     fs.unlinkSync(tmpInput);
 
     previews[previewId] = outputPath;
-    setTimeout(() => {
-      if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
-      delete previews[previewId];
-    }, 10 * 60 * 1000);
+    scheduleDelete(outputPath);
+    setTimeout(() => delete previews[previewId], 10 * 60 * 1000);
 
     res.json({ success: true, previewId });
   } catch (err) {
@@ -131,11 +155,12 @@ app.get('/preview/:id', (req, res) => {
 // Upload MP3
 app.post('/upload-mp3', upload.single('file'), async (req, res) => {
   try {
-    const { apiKey, userId, robloxPlayback = 0.43, asIs = 'false', displayName } = req.body;
+    const options = parseOptions(req.body);
+    const { apiKey, userId, displayName } = req.body;
     const inputPath = req.file.path;
     const outputPath = path.join(TMP, `out_${Date.now()}.ogg`);
 
-    await convertAudio(inputPath, outputPath, robloxPlayback, asIs === 'true');
+    await convertAudio(inputPath, outputPath, options);
     const result = await uploadToRoblox(outputPath, apiKey, userId, displayName);
 
     fs.unlinkSync(inputPath);
@@ -150,12 +175,13 @@ app.post('/upload-mp3', upload.single('file'), async (req, res) => {
 // Upload URL
 app.post('/upload-url', async (req, res) => {
   try {
-    const { url, apiKey, userId, robloxPlayback = 0.43, asIs = false, displayName } = req.body;
+    const options = parseOptions(req.body);
+    const { url, apiKey, userId, displayName } = req.body;
     const tmpInput = path.join(TMP, `yt_${Date.now()}.mp3`);
     const tmpOutput = path.join(TMP, `out_${Date.now()}.ogg`);
 
     await downloadYoutube(url, tmpInput);
-    await convertAudio(tmpInput, tmpOutput, robloxPlayback, asIs);
+    await convertAudio(tmpInput, tmpOutput, options);
     const result = await uploadToRoblox(tmpOutput, apiKey, userId, displayName);
 
     fs.unlinkSync(tmpInput);
