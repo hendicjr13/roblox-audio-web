@@ -33,18 +33,12 @@ console.log('Audio engine: atempo (optimized)');
 function buildAudioFilters(speedMultiplier, amplifyDb) {
   const filters = [];
 
-  // Resample ke 44100 sebelum processing
-  filters.push('aresample=async=1:min_hard_comp=0.100000:first_pts=0');
+  // asetrate: naikin speed + pitch sekaligus (kayak Change Speed di Audacity)
+  // suara jadi beda dari ori → efektif bypass copyright fingerprint
+  filters.push(`asetrate=44100*${speedMultiplier.toFixed(4)}`);
 
-  // Atempo chain — max 2.0 per node
-  let remaining = speedMultiplier;
-  const atempoChain = [];
-  while (remaining > 2.0) {
-    atempoChain.push('atempo=2.0');
-    remaining /= 2.0;
-  }
-  if (remaining > 1.0001) atempoChain.push(`atempo=${remaining.toFixed(6)}`);
-  filters.push(...atempoChain);
+  // Resample balik ke 44100 setelah rate diubah
+  filters.push('aresample=44100');
 
   // Amplify
   if (amplifyDb !== 0) filters.push(`volume=${amplifyDb}dB`);
