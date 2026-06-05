@@ -91,8 +91,8 @@
 
   <div class="card">
     <h2>🔑 Akun Roblox</h2>
-    <input type="text" id="userId" placeholder="Roblox User ID (contoh: 9217554647)">
-    <input type="password" id="apiKey" placeholder="API Key dari Roblox Creator Hub">
+    <input type="text" id="userId" placeholder="Roblox User ID (contoh: 9217554647)" oninput="saveCredentials()">
+    <input type="password" id="apiKey" placeholder="API Key dari Roblox Creator Hub" oninput="saveCredentials()">
   </div>
 
   <div class="card">
@@ -233,6 +233,9 @@
     function onUrlInput(val) {
       clearTimeout(titleDebounce);
       const nameInput = document.getElementById('displayName');
+      // Clear nama setiap kali URL berubah
+      nameInput.value = '';
+      nameInput.style.borderColor = '#333';
       if (!val.includes('youtube.com') && !val.includes('youtu.be')) return;
       document.getElementById('titleLoader').style.display = 'block';
       titleDebounce = setTimeout(async () => {
@@ -257,12 +260,10 @@
       if (!input.files[0]) return;
       const file = input.files[0];
       document.getElementById('fileName').textContent = file.name;
-      // Hapus ekstensi .mp3 buat jadi nama default
+      // Selalu replace nama dengan file baru
       const nameInput = document.getElementById('displayName');
-      if (!nameInput.value) {
-        nameInput.value = file.name.replace(/\.[^/.]+$/, '');
-        nameInput.style.borderColor = '#00d4ff';
-      }
+      nameInput.value = file.name.replace(/\.[^/.]+$/, '');
+      nameInput.style.borderColor = '#00d4ff';
     }
 
     function applyPreset(speedFactor, amp) {
@@ -471,8 +472,23 @@
       btn.disabled = false;
     }
 
+
+    // ── Credentials ───────────────────────────────────────────────────
+    function saveCredentials() {
+      localStorage.setItem('roblox_userId', document.getElementById('userId').value);
+      localStorage.setItem('roblox_apiKey', document.getElementById('apiKey').value);
+    }
+
+    function loadCredentials() {
+      const userId = localStorage.getItem('roblox_userId');
+      const apiKey = localStorage.getItem('roblox_apiKey');
+      if (userId) document.getElementById('userId').value = userId;
+      if (apiKey) document.getElementById('apiKey').value = apiKey;
+    }
+
     // Init
     applyPreset(2.3, -4);
+    loadCredentials();
   </script>
 </body>
 </html>
