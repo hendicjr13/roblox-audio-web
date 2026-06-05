@@ -34,22 +34,16 @@
     .drop-area { border: 2px dashed #333; border-radius: 8px; padding: 30px; text-align: center; cursor: pointer; margin-bottom: 16px; transition: border-color 0.2s; }
     .drop-area:hover { border-color: #00d4ff; }
     .drop-area p { color: #555; font-size: 0.9rem; }
-
-    /* Preset buttons */
     .preset-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
     .preset-btn { padding: 7px 14px; border-radius: 20px; border: 1px solid #444; background: #111; color: #aaa; font-size: 0.82rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
     .preset-btn:hover { border-color: #00d4ff; color: #00d4ff; }
     .preset-btn.active { background: #00d4ff; color: #000; border-color: #00d4ff; font-weight: bold; }
-
-    /* Sliders */
     .slider-group { margin-bottom: 18px; }
     .slider-label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
     .slider-label-row span { color: #aaa; font-size: 0.88rem; }
     .slider-val { font-weight: bold; color: #00d4ff; font-size: 1rem; min-width: 52px; text-align: right; }
     input[type=range] { width: 100%; accent-color: #00d4ff; height: 6px; margin-bottom: 4px; cursor: pointer; }
     .slider-ticks { display: flex; justify-content: space-between; font-size: 0.68rem; color: #444; }
-
-    /* Info box */
     .info-box { background: #0d1f2e; border: 1px solid #00d4ff33; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
     .info-box .info-title { font-size: 0.75rem; color: #00d4ff; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
     .info-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
@@ -62,8 +56,6 @@
     .divider { border: none; border-top: 1px solid #222; margin: 10px 0; }
     .roblox-tip { background: #1a1a0d; border: 1px solid #ffd60033; border-radius: 8px; padding: 12px; margin-bottom: 0; font-size: 0.85rem; color: #ffd600; line-height: 1.5; }
     .roblox-tip strong { display: block; margin-bottom: 4px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.7; }
-
-    /* Toggle */
     .toggle-row { display: flex; align-items: center; justify-content: space-between; background: #111; border: 1px solid #333; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; cursor: pointer; transition: border-color 0.2s; }
     .toggle-row:hover { border-color: #555; }
     .toggle-label { font-size: 0.9rem; color: #ccc; }
@@ -75,20 +67,34 @@
     .toggle-switch input:checked + .toggle-slider { background: #00c853; }
     .toggle-switch input:checked + .toggle-slider:before { transform: translateX(18px); }
     .speed-dimmed { opacity: 0.35; pointer-events: none; }
+
+    /* Upload status card */
+    .upload-status-card { background: #111; border: 1px solid #333; border-radius: 10px; padding: 16px; margin-top: 12px; display: none; }
+    .upload-status-card .title { font-size: 0.9rem; color: #fff; font-weight: bold; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .upload-status-card .meta { font-size: 0.78rem; color: #666; margin-bottom: 12px; }
+    .badge-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .badge { padding: 4px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: bold; }
+    .badge-queued { background: #333; color: #aaa; }
+    .badge-processing { background: #1a2e1a; color: #00d4ff; border: 1px solid #00d4ff55; }
+    .badge-accepted { background: #0d2e1a; color: #00ff88; border: 1px solid #00ff8855; }
+    .badge-rejected { background: #2e0d0d; color: #ff4444; border: 1px solid #ff444455; }
+    .asset-id { font-size: 0.82rem; color: #ffd600; font-family: monospace; }
+    .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid #00d4ff44; border-top-color: #00d4ff; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 6px; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .name-input-wrap { position: relative; }
+    .name-input-wrap .loading-dot { position: absolute; right: 12px; top: 50%; transform: translateY(-65%); width: 8px; height: 8px; border: 2px solid #00d4ff44; border-top-color: #00d4ff; border-radius: 50%; animation: spin 0.8s linear infinite; display: none; }
   </style>
 </head>
 <body>
   <h1>🎵 Roblox Audio Uploader</h1>
   <p class="sub">Convert, preview & upload audio langsung ke Roblox</p>
 
-  <!-- Akun -->
   <div class="card">
     <h2>🔑 Akun Roblox</h2>
     <input type="text" id="userId" placeholder="Roblox User ID (contoh: 9217554647)">
     <input type="password" id="apiKey" placeholder="API Key dari Roblox Creator Hub">
   </div>
 
-  <!-- Sumber Audio -->
   <div class="card">
     <h2>🎵 Sumber Audio</h2>
     <div class="tabs">
@@ -96,22 +102,23 @@
       <div class="tab" onclick="switchTab('mp3')">📁 Upload MP3</div>
     </div>
     <div id="url-section" class="active">
-      <input type="text" id="audioUrl" placeholder="Paste link YouTube...">
+      <input type="text" id="audioUrl" placeholder="Paste link YouTube..." oninput="onUrlInput(this.value)">
     </div>
     <div id="mp3-section">
       <div class="drop-area" onclick="document.getElementById('mp3File').click()">
         <p>🎵 Klik atau drag & drop file MP3</p>
         <p style="margin-top:8px;font-size:0.8rem;" id="fileName">Maks 15MB</p>
       </div>
-      <input type="file" id="mp3File" accept=".mp3" style="display:none" onchange="updateFileName(this)">
+      <input type="file" id="mp3File" accept=".mp3" style="display:none" onchange="onFileSelect(this)">
     </div>
-    <input type="text" id="displayName" placeholder="Nama audio di Roblox (opsional)">
+    <div class="name-input-wrap">
+      <input type="text" id="displayName" placeholder="Nama audio di Roblox (auto detect dari judul)">
+      <div class="loading-dot" id="titleLoader"></div>
+    </div>
   </div>
 
-  <!-- Speed Config -->
   <div class="card">
     <h2>⚙️ Advanced Settings</h2>
-
     <label class="toggle-row" onclick="toggleAsIs()">
       <div class="toggle-label">
         Upload tanpa ubah speed
@@ -122,9 +129,7 @@
         <div class="toggle-slider"></div>
       </div>
     </label>
-
     <div id="speedControls">
-      <!-- Preset -->
       <div style="margin-bottom:10px;">
         <div style="font-size:0.8rem;color:#666;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">Preset</div>
         <div class="preset-row">
@@ -135,8 +140,6 @@
           <div class="preset-btn" onclick="applyPreset(2.9, -7)">Ultra 2.9x</div>
         </div>
       </div>
-
-      <!-- Slider Kecepatan -->
       <div class="slider-group">
         <div class="slider-label-row">
           <span>PlaybackSpeed di Roblox Module</span>
@@ -145,8 +148,6 @@
         <input type="range" id="speedSlider" min="0.34" max="1.00" step="0.01" value="0.43" oninput="onSpeedSlider(this.value)">
         <div class="slider-ticks"><span>0.34x</span><span>0.50x</span><span>0.67x</span><span>0.83x</span><span>1.00x</span></div>
       </div>
-
-      <!-- Slider Amplifikasi -->
       <div class="slider-group">
         <div class="slider-label-row">
           <span>Amplifikasi (dB)</span>
@@ -155,8 +156,6 @@
         <input type="range" id="ampSlider" min="-12" max="0" step="0.5" value="-4" oninput="onAmpSlider(this.value)">
         <div class="slider-ticks"><span>-12 dB</span><span>-9 dB</span><span>-6 dB</span><span>-3 dB</span><span>0 dB</span></div>
       </div>
-
-      <!-- Slider Durasi Maks -->
       <div class="slider-group">
         <div class="slider-label-row">
           <span>Durasi Maks (detik)</span>
@@ -165,8 +164,6 @@
         <input type="range" id="durSlider" min="30" max="400" step="10" value="400" oninput="onDurSlider(this.value)">
         <div class="slider-ticks"><span>30s</span><span>130s</span><span>215s</span><span>310s</span><span>400s</span></div>
       </div>
-
-      <!-- Info Box -->
       <div class="info-box">
         <div class="info-title">📊 Kalkulasi Otomatis</div>
         <div class="info-row">
@@ -187,7 +184,6 @@
           <span class="val val-green">✅ Normal (1.00x)</span>
         </div>
       </div>
-
       <div class="roblox-tip">
         <strong>💡 Setting di Roblox Studio</strong>
         Set <code>PlaybackSpeed</code> di Music Module kamu ke <strong id="tipSpeed">0.43</strong>
@@ -195,16 +191,25 @@
     </div>
   </div>
 
-  <!-- Action -->
   <div class="card">
     <h2>🚀 Action</h2>
     <button class="btn btn-primary" id="previewBtn" onclick="handlePreview()">🎧 Convert & Preview</button>
     <div class="player" id="playerBox">
-      <p>Preview hasil convert (dengerin dulu sebelum upload):</p>
+      <p>Preview hasil convert:</p>
       <audio id="audioPlayer" controls></audio>
     </div>
     <button class="btn btn-success" id="uploadBtn" onclick="handleUpload()" style="display:none">🚀 Upload ke Roblox</button>
     <div class="status" id="status"></div>
+
+    <!-- Upload status card -->
+    <div class="upload-status-card" id="uploadStatusCard">
+      <div class="title" id="uploadTitle">-</div>
+      <div class="meta" id="uploadMeta">-</div>
+      <div class="badge-row">
+        <span class="badge badge-queued" id="uploadBadge">⏳ Menunggu</span>
+        <span class="asset-id" id="uploadAssetId" style="display:none"></span>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -213,23 +218,59 @@
     let currentSpeed = 0.43;
     let currentAmp = -4;
     let currentDur = 400;
+    let titleDebounce = null;
+    let pollInterval = null;
 
-    const PRESETS = [
-      { speed: 2.1, amp: -2 },
-      { speed: 2.3, amp: -4 },
-      { speed: 2.5, amp: -5 },
-      { speed: 2.7, amp: -6 },
-      { speed: 2.9, amp: -7 },
-    ];
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', (i === 0) === (tab === 'url')));
+      document.getElementById('url-section').classList.toggle('active', tab === 'url');
+      document.getElementById('mp3-section').classList.toggle('active', tab === 'mp3');
+      resetPlayer();
+    }
+
+    // Auto detect title dari YouTube URL
+    function onUrlInput(val) {
+      clearTimeout(titleDebounce);
+      const nameInput = document.getElementById('displayName');
+      if (!val.includes('youtube.com') && !val.includes('youtu.be')) return;
+      document.getElementById('titleLoader').style.display = 'block';
+      titleDebounce = setTimeout(async () => {
+        try {
+          const res = await fetch('/get-title', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: val })
+          });
+          const data = await res.json();
+          if (data.success && data.title) {
+            nameInput.value = data.title;
+            nameInput.style.borderColor = '#00d4ff';
+          }
+        } catch (_) {}
+        document.getElementById('titleLoader').style.display = 'none';
+      }, 800);
+    }
+
+    // Auto detect nama dari file MP3
+    function onFileSelect(input) {
+      if (!input.files[0]) return;
+      const file = input.files[0];
+      document.getElementById('fileName').textContent = file.name;
+      // Hapus ekstensi .mp3 buat jadi nama default
+      const nameInput = document.getElementById('displayName');
+      if (!nameInput.value) {
+        nameInput.value = file.name.replace(/\.[^/.]+$/, '');
+        nameInput.style.borderColor = '#00d4ff';
+      }
+    }
 
     function applyPreset(speedFactor, amp) {
-      // Convert speedFactor to robloxPlayback
       const robloxPlayback = (1 / speedFactor).toFixed(2);
       document.getElementById('speedSlider').value = robloxPlayback;
       document.getElementById('ampSlider').value = amp;
       onSpeedSlider(robloxPlayback, false);
       onAmpSlider(amp);
-      // Highlight active preset
       document.querySelectorAll('.preset-btn').forEach(b => {
         const sf = parseFloat(b.textContent);
         b.classList.toggle('active', Math.abs(sf - speedFactor) < 0.05);
@@ -261,14 +302,6 @@
       resetPlayer();
     }
 
-    function switchTab(tab) {
-      currentTab = tab;
-      document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', (i === 0) === (tab === 'url')));
-      document.getElementById('url-section').classList.toggle('active', tab === 'url');
-      document.getElementById('mp3-section').classList.toggle('active', tab === 'mp3');
-      resetPlayer();
-    }
-
     function toggleAsIs() {
       const cb = document.getElementById('asIsToggle');
       setTimeout(() => {
@@ -276,10 +309,6 @@
         document.getElementById('speedControls').classList.toggle('speed-dimmed', isAsIs);
         resetPlayer();
       }, 0);
-    }
-
-    function updateFileName(input) {
-      if (input.files[0]) document.getElementById('fileName').textContent = input.files[0].name;
     }
 
     function showStatus(type, msg) {
@@ -293,17 +322,65 @@
       document.getElementById('playerBox').style.display = 'none';
       document.getElementById('uploadBtn').style.display = 'none';
       document.getElementById('audioPlayer').src = '';
+      document.getElementById('uploadStatusCard').style.display = 'none';
+      if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
     }
 
     function getPayload() {
-      return {
-        robloxPlayback: currentSpeed,
-        asIs: isAsIs,
-        amplify: currentAmp,
-        maxDuration: currentDur,
-      };
+      return { robloxPlayback: currentSpeed, asIs: isAsIs, amplify: currentAmp, maxDuration: currentDur };
     }
 
+    // ── Status polling ────────────────────────────────────────────────
+    function startPolling(operationId, displayName) {
+      const apiKey = document.getElementById('apiKey').value.trim();
+      const card = document.getElementById('uploadStatusCard');
+      const badge = document.getElementById('uploadBadge');
+      const assetIdEl = document.getElementById('uploadAssetId');
+      const titleEl = document.getElementById('uploadTitle');
+      const metaEl = document.getElementById('uploadMeta');
+
+      card.style.display = 'block';
+      titleEl.textContent = displayName || 'Audio';
+      metaEl.textContent = `Speed: ${(1/currentSpeed).toFixed(2)}x  ·  Amplify: ${currentAmp}dB  ·  Max: ${currentDur}s`;
+      badge.className = 'badge badge-processing';
+      badge.innerHTML = '<span class="spinner"></span> Processing...';
+      assetIdEl.style.display = 'none';
+
+      let attempts = 0;
+      pollInterval = setInterval(async () => {
+        attempts++;
+        if (attempts > 40) {
+          clearInterval(pollInterval);
+          badge.className = 'badge badge-queued';
+          badge.textContent = '⏳ Cek manual di Roblox';
+          return;
+        }
+        try {
+          const res = await fetch(`/status/${operationId}?apiKey=${encodeURIComponent(apiKey)}`);
+          const data = await res.json();
+          if (!data.success) return;
+
+          const op = data.data;
+          if (op.done) {
+            clearInterval(pollInterval);
+            if (op.response && op.response.assetId) {
+              badge.className = 'badge badge-accepted';
+              badge.textContent = '✅ Accepted';
+              assetIdEl.style.display = 'inline';
+              assetIdEl.textContent = `rbxassetid://${op.response.assetId}`;
+            } else if (op.error) {
+              badge.className = 'badge badge-rejected';
+              badge.textContent = '❌ Rejected';
+            } else {
+              badge.className = 'badge badge-accepted';
+              badge.textContent = '✅ Done';
+            }
+          }
+        } catch (_) {}
+      }, 3000);
+    }
+
+    // ── Preview ───────────────────────────────────────────────────────
     async function handlePreview() {
       const btn = document.getElementById('previewBtn');
       btn.disabled = true;
@@ -347,6 +424,7 @@
       btn.disabled = false;
     }
 
+    // ── Upload ────────────────────────────────────────────────────────
     async function handleUpload() {
       const userId = document.getElementById('userId').value.trim();
       const apiKey = document.getElementById('apiKey').value.trim();
@@ -381,8 +459,9 @@
 
         const data = await res.json();
         if (data.success) {
-          const opId = data.data.operationId || '';
-          showStatus('success', `✅ Berhasil upload! Operation ID: ${opId} — cek di create.roblox.com/marketplace/audio`);
+          const operationId = data.data.operationId;
+          showStatus('success', '✅ Upload berhasil! Menunggu review Roblox...');
+          if (operationId) startPolling(operationId, displayName);
         } else {
           showStatus('error', '❌ Gagal: ' + data.error);
         }
