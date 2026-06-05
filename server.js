@@ -3,7 +3,6 @@ const multer = require('multer');
 const axios = require('axios');
 const FormData = require('form-data');
 const ffmpeg = require('fluent-ffmpeg');
-const ytdl = require('@distube/ytdl-core');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -71,19 +70,68 @@ function convertAudio(inputPath, outputPath, options = {}) {
   });
 }
 
+// Ekstrak video ID dari URL YouTube
+function extractVideoId(url) {
+  const match = url.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([\w-]{11})/);
+  if (!match) throw new Error('URL YouTube tidak valid');
+  return match[1];
+}
+
+// Ambil convertURL dari etacloud
+async function getEtaConvertUrl() {
+  const authRes = await axios.get('https://eta.etacloud.org/api/v1/auth?_=' + Date.now());
+  const initRes = await axios.get('https://eta.etacloud.org/api/v1/init?_=' + Date.now());
+  return initRes.data.convertURL;
+}
+
+// Get title + downloadURL dari etacloud
+async function getYoutubeInfo(url) {
+  const videoId = extractVideoId(url);
+  const convertURL = await getEtaConvertUrl();
+  const baseUrl = convertURL.split('?')[0];
+  const sig = convertURL.split('sig=')[1];
+
+  let currentUrl = `${baseUrl}?sig=${sig}&v=${videoId}&f=mp3&_=${Date.now()}`;
+  let downloadURL = '';
+  let title = '';
+
+  // Follow redirect sampai dapet downloadURL
+  for (let i = 0; i < 5; i++) {
+    const res = await axios.get(currentUrl);
+    const data = res.data;
+    if (data.error !== 0) throw new Error('etacloud error: ' + data.error);
+    if (data.redirect === 1 && data.redirectURL) {
+      currentUrl = data.redirectURL + '&_=' + Date.now();
+      await new Promise(r => setTimeout(r, 800));
+      continue;
+    }
+    if (data.downloadURL) {
+      downloadURL = data.downloadURL;
+      title = data.title || '';
+      break;
+    }
+    await new Promise(r => setTimeout(r, 1000));
+  }
+
+  if (!downloadURL) throw new Error('Gagal mendapatkan download URL dari etacloud');
+  return { downloadURL, title };
+}
+
 async function getYoutubeTitle(url) {
   try {
-    const info = await ytdl.getBasicInfo(url);
-    return info.videoDetails.title || '';
+    const { title } = await getYoutubeInfo(url);
+    return title;
   } catch (_) { return ''; }
 }
 
 async function downloadYoutube(url, outputPath) {
+  const { downloadURL } = await getYoutubeInfo(url);
+  const res = await axios.get(downloadURL, { responseType: 'stream' });
   return new Promise((resolve, reject) => {
-    const stream = ytdl(url, { filter: 'audioonly', quality: 'highestaudio' });
-    stream.pipe(fs.createWriteStream(outputPath));
-    stream.on('end', resolve);
-    stream.on('error', reject);
+    const writer = fs.createWriteStream(outputPath);
+    res.data.pipe(writer);
+    writer.on('finish', resolve);
+    writer.on('error', reject);
   });
 }
 
