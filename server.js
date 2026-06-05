@@ -77,10 +77,18 @@ function extractVideoId(url) {
   return match[1];
 }
 
+const BROWSER_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Referer': 'https://v5.y2mate.nu/',
+  'Origin': 'https://v5.y2mate.nu',
+  'Accept': 'application/json, text/plain, */*',
+  'Accept-Language': 'en-US,en;q=0.9',
+};
+
 // Ambil convertURL dari etacloud
 async function getEtaConvertUrl() {
-  const authRes = await axios.get('https://eta.etacloud.org/api/v1/auth?_=' + Date.now());
-  const initRes = await axios.get('https://eta.etacloud.org/api/v1/init?_=' + Date.now());
+  await axios.get('https://eta.etacloud.org/api/v1/auth?_=' + Date.now(), { headers: BROWSER_HEADERS });
+  const initRes = await axios.get('https://eta.etacloud.org/api/v1/init?_=' + Date.now(), { headers: BROWSER_HEADERS });
   return initRes.data.convertURL;
 }
 
@@ -95,9 +103,8 @@ async function getYoutubeInfo(url) {
   let downloadURL = '';
   let title = '';
 
-  // Follow redirect sampai dapet downloadURL
   for (let i = 0; i < 5; i++) {
-    const res = await axios.get(currentUrl);
+    const res = await axios.get(currentUrl, { headers: BROWSER_HEADERS });
     const data = res.data;
     if (data.error !== 0) throw new Error('etacloud error: ' + data.error);
     if (data.redirect === 1 && data.redirectURL) {
