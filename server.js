@@ -3,14 +3,22 @@ const multer = require('multer');
 const axios = require('axios');
 const FormData = require('form-data');
 const ffmpeg = require('fluent-ffmpeg');
-const ffmpegStatic = require('ffmpeg-static');
 const ytdl = require('@distube/ytdl-core');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { execSync } = require('child_process');
 
-ffmpeg.setFfmpegPath(ffmpegStatic);
+// Pake system ffmpeg (dari Dockerfile apt install)
+// ffmpeg-static sebagai fallback kalau system ffmpeg ga ada
+try {
+  execSync('ffmpeg -version', { stdio: 'ignore' });
+  console.log('Using system ffmpeg');
+} catch (_) {
+  const ffmpegStatic = require('ffmpeg-static');
+  ffmpeg.setFfmpegPath(ffmpegStatic);
+  console.log('Using ffmpeg-static fallback');
+}
 
 const TMP = os.tmpdir();
 const app = express();
@@ -21,31 +29,34 @@ app.use(express.static('public'));
 
 const previews = {};
 
-// Cek apakah rubberband tersedia di ffmpeg
+// Cek rubberband tersedia atau tidak
 let hasRubberband = false;
 try {
-  const result = execSync(`${ffmpegStatic} -filters 2>&1 | grep rubberband`, { encoding: 'utf8' });
+  const result = execSync('ffmpeg -filters 2>&1 | grep rubberband', {
+    encoding: 'utf8',
+    shell: true
+  });
   hasRubberband = result.includes('rubberband');
 } catch (_) {}
-console.log(`Rubberband available: ${hasRubberband}`);
+console.log(`Audio engine: ${hasRubberband ? 'rubberband (high quality)' : 'atempo + resample (fallback)'}`);
 
 function buildAudioFilters(speedMultiplier, amplifyDb) {
   const filters = [];
 
-  // Resample ke 44100 dulu sebelum stretch
+  // Resample dulu sebelum stretch biar lebih bersih
   filters.push('aresample=44100');
 
   if (hasRubberband) {
-    // Rubberband: kualitas terbaik, pitch tidak berubah
+    // Rubberband: kualitas terbaik, pitch tidak ikut berubah
     filters.push(`rubberband=tempo=${speedMultiplier.toFixed(4)}:pitch=1.0`);
   } else {
-    // Atempo fallback: chain kalau > 2.0
+    // Atempo fallback — max 2.0 per filter, chain kalau lebih
     let remaining = speedMultiplier;
     while (remaining > 2.0) {
       filters.push('atempo=2.0');
       remaining /= 2.0;
     }
-    if (remaining > 1.0) {
+    if (remaining > 1.0001) {
       filters.push(`atempo=${remaining.toFixed(6)}`);
     }
   }
@@ -53,7 +64,7 @@ function buildAudioFilters(speedMultiplier, amplifyDb) {
   // Resample balik setelah stretch
   filters.push('aresample=44100');
 
-  // Amplify
+  // Amplifikasi volume
   if (amplifyDb !== 0) {
     filters.push(`volume=${amplifyDb}dB`);
   }
@@ -69,6 +80,7 @@ function convertAudio(inputPath, outputPath, options = {}) {
     maxDuration = 400
   } = options;
 
+  // Bulatkan speedMultiplier ke 2 desimal biar konsisten
   const speedMultiplier = Math.round((1 / parseFloat(robloxPlayback)) * 100) / 100;
 
   return new Promise((resolve, reject) => {
@@ -84,9 +96,13 @@ function convertAudio(inputPath, outputPath, options = {}) {
 
     cmd
       .toFormat('ogg')
-      .outputOptions(['-q:a 6']) // ogg quality scale 0-10, 6 = ~192kbps
+      .outputOptions(['-q:a 6']) // OGG quality ~192kbps
+      .on('start', cmd => console.log('FFmpeg command:', cmd))
       .on('end', resolve)
-      .on('error', reject)
+      .on('error', (err) => {
+        console.error('FFmpeg error:', err.message);
+        reject(err);
+      })
       .save(outputPath);
   });
 }
@@ -135,6 +151,16 @@ function scheduleCleanup(filePath, previewId) {
   }, 10 * 60 * 1000);
 }
 
+// ─── Routes ───────────────────────────────────────────────────────────
+
+// Debug info
+app.get('/info', (req, res) => {
+  res.json({
+    hasRubberband,
+    engine: hasRubberband ? 'rubberband' : 'atempo+resample',
+  });
+});
+
 // Preview MP3
 app.post('/preview-mp3', upload.single('file'), async (req, res) => {
   try {
@@ -155,7 +181,7 @@ app.post('/preview-mp3', upload.single('file'), async (req, res) => {
   }
 });
 
-// Preview URL
+// Preview YouTube URL
 app.post('/preview-url', async (req, res) => {
   try {
     const options = parseOptions(req.body);
@@ -177,17 +203,17 @@ app.post('/preview-url', async (req, res) => {
   }
 });
 
-// Serve preview
+// Serve preview audio
 app.get('/preview/:id', (req, res) => {
   const filePath = previews[req.params.id];
   if (!filePath || !fs.existsSync(filePath)) {
-    return res.status(404).json({ error: 'Preview not found' });
+    return res.status(404).json({ error: 'Preview not found or expired' });
   }
   res.setHeader('Content-Type', 'audio/ogg');
   fs.createReadStream(filePath).pipe(res);
 });
 
-// Upload MP3
+// Upload MP3 ke Roblox
 app.post('/upload-mp3', upload.single('file'), async (req, res) => {
   try {
     const options = parseOptions(req.body);
@@ -207,7 +233,7 @@ app.post('/upload-mp3', upload.single('file'), async (req, res) => {
   }
 });
 
-// Upload URL
+// Upload YouTube URL ke Roblox
 app.post('/upload-url', async (req, res) => {
   try {
     const options = parseOptions(req.body);
@@ -228,13 +254,7 @@ app.post('/upload-url', async (req, res) => {
   }
 });
 
-// Info endpoint - buat debug
-app.get('/info', (req, res) => {
-  res.json({ hasRubberband, ffmpegPath: ffmpegStatic });
-});
-
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`Audio engine: ${hasRubberband ? 'rubberband (high quality)' : 'atempo+resample (fallback)'}`);
 });
