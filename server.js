@@ -8,6 +8,7 @@ const ytdl = require('@distube/ytdl-core');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const { execSync } = require('child_process');
 
 ffmpeg.setFfmpegPath(ffmpegStatic);
 
@@ -20,35 +21,70 @@ app.use(express.static('public'));
 
 const previews = {};
 
-function buildAtempoFilters(speedFactor) {
+// Cek apakah rubberband tersedia di ffmpeg
+let hasRubberband = false;
+try {
+  const result = execSync(`${ffmpegStatic} -filters 2>&1 | grep rubberband`, { encoding: 'utf8' });
+  hasRubberband = result.includes('rubberband');
+} catch (_) {}
+console.log(`Rubberband available: ${hasRubberband}`);
+
+function buildAudioFilters(speedMultiplier, amplifyDb) {
   const filters = [];
-  let remaining = speedFactor;
-  while (remaining > 2.0) {
-    filters.push('atempo=2.0');
-    remaining /= 2.0;
+
+  // Resample ke 44100 dulu sebelum stretch
+  filters.push('aresample=44100');
+
+  if (hasRubberband) {
+    // Rubberband: kualitas terbaik, pitch tidak berubah
+    filters.push(`rubberband=tempo=${speedMultiplier.toFixed(4)}:pitch=1.0`);
+  } else {
+    // Atempo fallback: chain kalau > 2.0
+    let remaining = speedMultiplier;
+    while (remaining > 2.0) {
+      filters.push('atempo=2.0');
+      remaining /= 2.0;
+    }
+    if (remaining > 1.0) {
+      filters.push(`atempo=${remaining.toFixed(6)}`);
+    }
   }
-  filters.push(`atempo=${remaining.toFixed(6)}`);
+
+  // Resample balik setelah stretch
+  filters.push('aresample=44100');
+
+  // Amplify
+  if (amplifyDb !== 0) {
+    filters.push(`volume=${amplifyDb}dB`);
+  }
+
   return filters;
 }
 
 function convertAudio(inputPath, outputPath, options = {}) {
-  const { robloxPlayback = 0.43, asIs = false, amplify = -4, maxDuration = 400 } = options;
+  const {
+    robloxPlayback = 0.43,
+    asIs = false,
+    amplify = -4,
+    maxDuration = 400
+  } = options;
+
+  const speedMultiplier = Math.round((1 / parseFloat(robloxPlayback)) * 100) / 100;
 
   return new Promise((resolve, reject) => {
-    const cmd = ffmpeg(inputPath);
-
-    // Trim to max duration
-    cmd.setDuration(maxDuration);
+    const cmd = ffmpeg(inputPath)
+      .setDuration(maxDuration)
+      .audioFrequency(44100)
+      .audioChannels(2);
 
     if (!asIs) {
-      const speedFactor = 1 / parseFloat(robloxPlayback);
-      const filters = buildAtempoFilters(speedFactor);
-      // Add amplify filter
-      filters.push(`volume=${amplify}dB`);
+      const filters = buildAudioFilters(speedMultiplier, parseFloat(amplify));
       cmd.audioFilters(filters);
     }
 
-    cmd.toFormat('ogg')
+    cmd
+      .toFormat('ogg')
+      .outputOptions(['-q:a 6']) // ogg quality scale 0-10, 6 = ~192kbps
       .on('end', resolve)
       .on('error', reject)
       .save(outputPath);
@@ -92,9 +128,10 @@ function parseOptions(body) {
   };
 }
 
-function scheduleDelete(filePath) {
+function scheduleCleanup(filePath, previewId) {
   setTimeout(() => {
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    if (previewId) delete previews[previewId];
   }, 10 * 60 * 1000);
 }
 
@@ -110,8 +147,7 @@ app.post('/preview-mp3', upload.single('file'), async (req, res) => {
     fs.unlinkSync(inputPath);
 
     previews[previewId] = outputPath;
-    scheduleDelete(outputPath);
-    setTimeout(() => delete previews[previewId], 10 * 60 * 1000);
+    scheduleCleanup(outputPath, previewId);
 
     res.json({ success: true, previewId });
   } catch (err) {
@@ -133,8 +169,7 @@ app.post('/preview-url', async (req, res) => {
     fs.unlinkSync(tmpInput);
 
     previews[previewId] = outputPath;
-    scheduleDelete(outputPath);
-    setTimeout(() => delete previews[previewId], 10 * 60 * 1000);
+    scheduleCleanup(outputPath, previewId);
 
     res.json({ success: true, previewId });
   } catch (err) {
@@ -193,5 +228,13 @@ app.post('/upload-url', async (req, res) => {
   }
 });
 
+// Info endpoint - buat debug
+app.get('/info', (req, res) => {
+  res.json({ hasRubberband, ffmpegPath: ffmpegStatic });
+});
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log('Server running on port ' + PORT));
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Audio engine: ${hasRubberband ? 'rubberband (high quality)' : 'atempo+resample (fallback)'}`);
+});
