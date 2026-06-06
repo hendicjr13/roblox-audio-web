@@ -113,17 +113,36 @@ async function downloadYoutube(url, outputPath) {
   const videoId = extractVideoId(url);
   const data = await fetchInvidious(videoId);
 
-  // Ambil audio format terbaik (webm/mp4 audio only)
-  const audioFormats = (data.adaptiveFormats || [])
+  console.log('Invidious adaptiveFormats count:', (data.adaptiveFormats || []).length);
+  console.log('Invidious formatStreams count:', (data.formatStreams || []).length);
+
+  // Coba adaptiveFormats dulu (audio only)
+  let audioUrl = null;
+  const adaptive = (data.adaptiveFormats || [])
     .filter(f => f.type && f.type.startsWith('audio/'))
     .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
 
-  if (!audioFormats.length) throw new Error('Tidak ada audio format tersedia');
+  if (adaptive.length > 0) {
+    audioUrl = adaptive[0].url;
+    console.log('Using adaptiveFormats audio:', adaptive[0].type);
+  }
 
-  const audioUrl = audioFormats[0].url;
-  if (!audioUrl) throw new Error('Audio URL tidak tersedia');
+  // Fallback ke formatStreams (audio+video, ambil yang ada audio)
+  if (!audioUrl) {
+    const streams = (data.formatStreams || [])
+      .filter(f => f.url)
+      .sort((a, b) => (a.resolution === '720p' ? -1 : 1));
+    if (streams.length > 0) {
+      audioUrl = streams[0].url;
+      console.log('Using formatStreams fallback:', streams[0].type);
+    }
+  }
 
-  // Download audio stream
+  if (!audioUrl) {
+    console.log('Available keys:', Object.keys(data));
+    throw new Error('Tidak ada audio format tersedia dari Invidious');
+  }
+
   const res = await axios.get(audioUrl, {
     responseType: 'stream',
     timeout: 120000,
