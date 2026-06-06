@@ -70,7 +70,7 @@ function convertAudio(inputPath, outputPath, options = {}) {
   });
 }
 
-// InnerTube API — pake WEB client yang paling stable
+// InnerTube API pake TV client — trusted device, ga kena bot detection
 function extractVideoId(url) {
   const match = url.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([\w-]{11})/);
   if (!match) throw new Error('URL YouTube tidak valid');
@@ -78,34 +78,33 @@ function extractVideoId(url) {
 }
 
 async function fetchInnerTube(videoId) {
+  // TVHTML5_SIMPLY_EMBEDDED_PLAYER — client Smart TV, selalu trusted
   const payload = {
     context: {
       client: {
-        clientName: 'WEB',
-        clientVersion: '2.20240726.00.00',
+        clientName: 'TVHTML5_SIMPLY_EMBEDDED_PLAYER',
+        clientVersion: '2.0',
         hl: 'en',
         gl: 'US',
-      }
+      },
+      thirdParty: {
+        embedUrl: 'https://www.youtube.com',
+      },
     },
     videoId,
-    playbackContext: {
-      contentPlaybackContext: {
-        html5Preference: 'HTML5_PREF_WANTS',
-      }
-    },
     contentCheckOk: true,
     racyCheckOk: true,
   };
 
   const res = await axios.post(
-    'https://www.youtube.com/youtubei/v1/player',
+    'https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8',
     payload,
     {
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        'X-YouTube-Client-Name': '1',
-        'X-YouTube-Client-Version': '2.20240726.00.00',
+        'User-Agent': 'Mozilla/5.0 (SMART-TV; Linux; Tizen 6.0) AppleWebKit/538.1 (KHTML, like Gecko) Version/6.0 TV Safari/538.1',
+        'X-YouTube-Client-Name': '85',
+        'X-YouTube-Client-Version': '2.0',
         'Origin': 'https://www.youtube.com',
         'Referer': 'https://www.youtube.com/',
       },
@@ -116,7 +115,6 @@ async function fetchInnerTube(videoId) {
   const d = res.data;
   console.log('InnerTube status:', d?.playabilityStatus?.status);
   console.log('InnerTube reason:', d?.playabilityStatus?.reason || '-');
-  console.log('InnerTube streamingData keys:', Object.keys(d?.streamingData || {}));
   console.log('InnerTube adaptiveFormats:', (d?.streamingData?.adaptiveFormats || []).length);
   return d;
 }
