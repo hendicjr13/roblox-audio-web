@@ -70,17 +70,17 @@ function convertAudio(inputPath, outputPath, options = {}) {
   });
 }
 
-// List Invidious instances - ambil dari https://api.invidious.io/instances.json
-const INVIDIOUS_INSTANCES = [
-  'https://invidious.materialio.us',
-  'https://invidious.privacydev.net',
-  'https://invidious.fdn.fr',
-  'https://iv.melmac.space',
-  'https://invidious.lunar.icu',
-  'https://invidious.nerdvpn.de',
-  'https://invidious.io.lol',
-  'https://invidious.perennialte.ch',
-];
+// InnerTube API — internal YouTube API yang dipake app Android
+// Sama seperti yang dipake NewPipe / YouTube Revanced
+const INNERTUBE_API_KEY = 'AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w';
+const INNERTUBE_CLIENT = {
+  clientName: 'ANDROID',
+  clientVersion: '19.09.37',
+  androidSdkVersion: 30,
+  userAgent: 'com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip',
+  hl: 'en',
+  gl: 'US',
+};
 
 function extractVideoId(url) {
   const match = url.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([\w-]{11})/);
@@ -88,76 +88,67 @@ function extractVideoId(url) {
   return match[1];
 }
 
-// Coba tiap instance sampai dapat response JSON valid
-async function fetchInvidious(videoId) {
-  const errors = [];
-  for (const instance of INVIDIOUS_INSTANCES) {
-    try {
-      const res = await axios.get(`${instance}/api/v1/videos/${videoId}`, {
-        timeout: 10000,
-        headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }
-      });
-      const data = res.data;
-      // Validasi response — harus object dengan title
-      if (typeof data === 'object' && !Array.isArray(data) && data.title) {
-        console.log(`Invidious OK: ${instance}`);
-        return data;
-      }
-      errors.push(`${instance}: invalid response`);
-    } catch (e) {
-      errors.push(`${instance}: ${e.message}`);
-      continue;
+async function fetchInnerTube(videoId) {
+  const res = await axios.post(
+    `https://www.youtube.com/youtubei/v1/player?key=${INNERTUBE_API_KEY}`,
+    {
+      videoId,
+      context: {
+        client: INNERTUBE_CLIENT,
+      },
+    },
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': INNERTUBE_CLIENT.userAgent,
+        'X-YouTube-Client-Name': '3',
+        'X-YouTube-Client-Version': INNERTUBE_CLIENT.clientVersion,
+      },
+      timeout: 15000,
     }
-  }
-  throw new Error('Semua Invidious instance gagal: ' + errors.join(' | '));
+  );
+  return res.data;
 }
 
 async function getYoutubeTitle(url) {
   try {
     const videoId = extractVideoId(url);
-    const data = await fetchInvidious(videoId);
-    return data.title || '';
+    const data = await fetchInnerTube(videoId);
+    return data?.videoDetails?.title || '';
   } catch (_) { return ''; }
 }
 
 async function downloadYoutube(url, outputPath) {
   const videoId = extractVideoId(url);
-  const data = await fetchInvidious(videoId);
+  const data = await fetchInnerTube(videoId);
 
-  console.log('Invidious adaptiveFormats count:', (data.adaptiveFormats || []).length);
-  console.log('Invidious formatStreams count:', (data.formatStreams || []).length);
+  const formats = data?.streamingData?.adaptiveFormats || [];
+  console.log('InnerTube formats count:', formats.length);
 
-  // Coba adaptiveFormats dulu (audio only)
-  let audioUrl = null;
-  const adaptive = (data.adaptiveFormats || [])
-    .filter(f => f.type && f.type.startsWith('audio/'))
+  // Ambil audio only format terbaik
+  const audioFormats = formats
+    .filter(f => f.mimeType && f.mimeType.startsWith('audio/') && f.url)
     .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
 
-  if (adaptive.length > 0) {
-    audioUrl = adaptive[0].url;
-    console.log('Using adaptiveFormats audio:', adaptive[0].type);
+  if (!audioFormats.length) {
+    // Fallback ke formats biasa
+    const allFormats = (data?.streamingData?.formats || []).filter(f => f.url);
+    if (!allFormats.length) throw new Error('Tidak ada format audio tersedia dari InnerTube');
+    console.log('Using fallback format:', allFormats[0].mimeType);
+    const res = await axios.get(allFormats[0].url, { responseType: 'stream', timeout: 120000 });
+    return new Promise((resolve, reject) => {
+      const writer = fs.createWriteStream(outputPath);
+      res.data.pipe(writer);
+      writer.on('finish', resolve);
+      writer.on('error', reject);
+    });
   }
 
-  // Fallback ke formatStreams (audio+video, ambil yang ada audio)
-  if (!audioUrl) {
-    const streams = (data.formatStreams || [])
-      .filter(f => f.url)
-      .sort((a, b) => (a.resolution === '720p' ? -1 : 1));
-    if (streams.length > 0) {
-      audioUrl = streams[0].url;
-      console.log('Using formatStreams fallback:', streams[0].type);
-    }
-  }
-
-  if (!audioUrl) {
-    console.log('Available keys:', Object.keys(data));
-    throw new Error('Tidak ada audio format tersedia dari Invidious');
-  }
-
-  const res = await axios.get(audioUrl, {
+  console.log('Using audio format:', audioFormats[0].mimeType, audioFormats[0].bitrate);
+  const res = await axios.get(audioFormats[0].url, {
     responseType: 'stream',
     timeout: 120000,
-    headers: { 'User-Agent': 'Mozilla/5.0' }
+    headers: { 'User-Agent': INNERTUBE_CLIENT.userAgent }
   });
 
   return new Promise((resolve, reject) => {
