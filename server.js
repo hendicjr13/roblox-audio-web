@@ -92,7 +92,7 @@ async function downloadYoutube(url, outputPath) {
   // Step 1: Hit Cobalt API buat dapet download URL
   console.log('Cobalt: requesting download URL...');
   const cobaltRes = await axios.post(
-    'https://api.cobalt.tools/',
+    'https://cobalt-production-571e.up.railway.app/',
     {
       url,
       downloadMode: 'audio',
