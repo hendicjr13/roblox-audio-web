@@ -70,75 +70,41 @@ function convertAudio(inputPath, outputPath, options = {}) {
   });
 }
 
-// Ekstrak video ID dari URL YouTube
-function extractVideoId(url) {
-  const match = url.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([\w-]{11})/);
-  if (!match) throw new Error('URL YouTube tidak valid');
-  return match[1];
-}
+const { spawnSync, spawn } = require('child_process');
 
-const BROWSER_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-  'Referer': 'https://v5.y2mate.nu/',
-  'Origin': 'https://v5.y2mate.nu',
-  'Accept': 'application/json, text/plain, */*',
-  'Accept-Language': 'en-US,en;q=0.9',
-};
-
-// Ambil convertURL dari etacloud
-async function getEtaConvertUrl() {
-  await axios.get('https://eta.etacloud.org/api/v1/auth?_=' + Date.now(), { headers: BROWSER_HEADERS });
-  const initRes = await axios.get('https://eta.etacloud.org/api/v1/init?_=' + Date.now(), { headers: BROWSER_HEADERS });
-  return initRes.data.convertURL;
-}
-
-// Get title + downloadURL dari etacloud
-async function getYoutubeInfo(url) {
-  const videoId = extractVideoId(url);
-  const convertURL = await getEtaConvertUrl();
-  const baseUrl = convertURL.split('?')[0];
-  const sig = convertURL.split('sig=')[1];
-
-  let currentUrl = `${baseUrl}?sig=${sig}&v=${videoId}&f=mp3&_=${Date.now()}`;
-  let downloadURL = '';
-  let title = '';
-
-  for (let i = 0; i < 5; i++) {
-    const res = await axios.get(currentUrl, { headers: BROWSER_HEADERS });
-    const data = res.data;
-    if (data.error !== 0) throw new Error('etacloud error: ' + data.error);
-    if (data.redirect === 1 && data.redirectURL) {
-      currentUrl = data.redirectURL + '&_=' + Date.now();
-      await new Promise(r => setTimeout(r, 800));
-      continue;
-    }
-    if (data.downloadURL) {
-      downloadURL = data.downloadURL;
-      title = data.title || '';
-      break;
-    }
-    await new Promise(r => setTimeout(r, 1000));
-  }
-
-  if (!downloadURL) throw new Error('Gagal mendapatkan download URL dari etacloud');
-  return { downloadURL, title };
-}
-
+// Get YouTube title pake yt-dlp
 async function getYoutubeTitle(url) {
   try {
-    const { title } = await getYoutubeInfo(url);
-    return title;
+    const result = spawnSync('yt-dlp', [
+      '--print', 'title',
+      '--no-playlist',
+      '--no-warnings',
+      url
+    ], { encoding: 'utf8', timeout: 15000 });
+    return (result.stdout || '').trim();
   } catch (_) { return ''; }
 }
 
+// Download YouTube audio pake yt-dlp
 async function downloadYoutube(url, outputPath) {
-  const { downloadURL } = await getYoutubeInfo(url);
-  const res = await axios.get(downloadURL, { responseType: 'stream' });
   return new Promise((resolve, reject) => {
-    const writer = fs.createWriteStream(outputPath);
-    res.data.pipe(writer);
-    writer.on('finish', resolve);
-    writer.on('error', reject);
+    const proc = spawn('yt-dlp', [
+      '-x',
+      '--audio-format', 'mp3',
+      '--audio-quality', '0',
+      '--no-playlist',
+      '--no-warnings',
+      '-o', outputPath,
+      url
+    ]);
+
+    let stderr = '';
+    proc.stderr.on('data', d => { stderr += d.toString(); });
+    proc.on('close', code => {
+      if (code === 0) resolve();
+      else reject(new Error('yt-dlp error: ' + stderr.slice(-300)));
+    });
+    proc.on('error', reject);
   });
 }
 
