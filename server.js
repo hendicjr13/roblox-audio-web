@@ -208,7 +208,7 @@ app.post('/preview-url', async (req, res) => {
     const options = parseOptions(req.body);
     const { url } = req.body;
     const previewId = 'prev_' + Date.now();
-    const tmpInput = path.join(TMP, `yt_${Date.now()}.mp3`);
+    const tmpInput = path.join(TMP, `yt_${Date.now()}.tmp`);
     const outputPath = path.join(TMP, `${previewId}.ogg`);
     await downloadYoutube(url, tmpInput);
     await convertAudio(tmpInput, outputPath, options);
@@ -244,7 +244,7 @@ app.post('/upload-url', async (req, res) => {
   try {
     const options = parseOptions(req.body);
     const { url, apiKey, userId, displayName } = req.body;
-    const tmpInput = path.join(TMP, `yt_${Date.now()}.mp3`);
+    const tmpInput = path.join(TMP, `yt_${Date.now()}.tmp`);
     const tmpOutput = path.join(TMP, `out_${Date.now()}.ogg`);
     await downloadYoutube(url, tmpInput);
     await convertAudio(tmpInput, tmpOutput, options);
