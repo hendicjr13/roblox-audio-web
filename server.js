@@ -70,18 +70,7 @@ function convertAudio(inputPath, outputPath, options = {}) {
   });
 }
 
-// InnerTube API — internal YouTube API yang dipake app Android
-// Sama seperti yang dipake NewPipe / YouTube Revanced
-const INNERTUBE_API_KEY = 'AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w';
-const INNERTUBE_CLIENT = {
-  clientName: 'ANDROID',
-  clientVersion: '19.09.37',
-  androidSdkVersion: 30,
-  userAgent: 'com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip',
-  hl: 'en',
-  gl: 'US',
-};
-
+// InnerTube API — pake WEB client yang paling stable
 function extractVideoId(url) {
   const match = url.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([\w-]{11})/);
   if (!match) throw new Error('URL YouTube tidak valid');
@@ -89,24 +78,42 @@ function extractVideoId(url) {
 }
 
 async function fetchInnerTube(videoId) {
-  const res = await axios.post(
-    `https://www.youtube.com/youtubei/v1/player?key=${INNERTUBE_API_KEY}`,
-    {
-      videoId,
-      context: {
-        client: INNERTUBE_CLIENT,
-      },
+  const payload = {
+    context: {
+      client: {
+        clientName: 'WEB',
+        clientVersion: '2.20240726.00.00',
+        hl: 'en',
+        gl: 'US',
+      }
     },
+    videoId,
+    playbackContext: {
+      contentPlaybackContext: {
+        html5Preference: 'HTML5_PREF_WANTS',
+      }
+    },
+    contentCheckOk: true,
+    racyCheckOk: true,
+  };
+
+  const res = await axios.post(
+    'https://www.youtube.com/youtubei/v1/player',
+    payload,
     {
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': INNERTUBE_CLIENT.userAgent,
-        'X-YouTube-Client-Name': '3',
-        'X-YouTube-Client-Version': INNERTUBE_CLIENT.clientVersion,
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'X-YouTube-Client-Name': '1',
+        'X-YouTube-Client-Version': '2.20240726.00.00',
+        'Origin': 'https://www.youtube.com',
+        'Referer': 'https://www.youtube.com/',
       },
       timeout: 15000,
     }
   );
+
+  console.log('InnerTube status:', res.data?.playabilityStatus?.status);
   return res.data;
 }
 
