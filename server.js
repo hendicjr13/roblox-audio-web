@@ -128,13 +128,23 @@ async function downloadYoutube(url, outputPath) {
   const res = await axios.get(downloadUrl, {
     responseType: 'stream',
     timeout: 120000,
-    headers: { 'User-Agent': 'Mozilla/5.0' }
+    headers: {
+      'User-Agent': 'Mozilla/5.0',
+      'Accept': '*/*',
+    }
   });
+
+  console.log('Cobalt response content-type:', res.headers['content-type']);
+  console.log('Cobalt response status:', res.status);
 
   return new Promise((resolve, reject) => {
     const writer = fs.createWriteStream(outputPath);
     res.data.pipe(writer);
-    writer.on('finish', resolve);
+    writer.on('finish', () => {
+      const size = fs.statSync(outputPath).size;
+      console.log('Downloaded file size:', size, 'bytes');
+      resolve();
+    });
     writer.on('error', reject);
   });
 }
