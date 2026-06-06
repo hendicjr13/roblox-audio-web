@@ -70,94 +70,65 @@ function convertAudio(inputPath, outputPath, options = {}) {
   });
 }
 
-// InnerTube API pake TV client — trusted device, ga kena bot detection
+// Cobalt API — open source YouTube downloader, maintain bypass sendiri
 function extractVideoId(url) {
   const match = url.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([\w-]{11})/);
   if (!match) throw new Error('URL YouTube tidak valid');
   return match[1];
 }
 
-async function fetchInnerTube(videoId) {
-  // TVHTML5_SIMPLY_EMBEDDED_PLAYER — client Smart TV, selalu trusted
-  const payload = {
-    context: {
-      client: {
-        clientName: 'TVHTML5_SIMPLY_EMBEDDED_PLAYER',
-        clientVersion: '2.0',
-        hl: 'en',
-        gl: 'US',
-      },
-      thirdParty: {
-        embedUrl: 'https://www.youtube.com',
-      },
-    },
-    videoId,
-    contentCheckOk: true,
-    racyCheckOk: true,
-  };
-
-  const res = await axios.post(
-    'https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8',
-    payload,
-    {
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (SMART-TV; Linux; Tizen 6.0) AppleWebKit/538.1 (KHTML, like Gecko) Version/6.0 TV Safari/538.1',
-        'X-YouTube-Client-Name': '85',
-        'X-YouTube-Client-Version': '2.0',
-        'Origin': 'https://www.youtube.com',
-        'Referer': 'https://www.youtube.com/',
-      },
-      timeout: 15000,
-    }
-  );
-
-  const d = res.data;
-  console.log('InnerTube status:', d?.playabilityStatus?.status);
-  console.log('InnerTube reason:', d?.playabilityStatus?.reason || '-');
-  console.log('InnerTube adaptiveFormats:', (d?.streamingData?.adaptiveFormats || []).length);
-  return d;
-}
-
 async function getYoutubeTitle(url) {
   try {
+    // Ambil title dari YouTube oEmbed — simple, ga butuh auth
     const videoId = extractVideoId(url);
-    const data = await fetchInnerTube(videoId);
-    return data?.videoDetails?.title || '';
+    const res = await axios.get(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`, {
+      timeout: 10000
+    });
+    return res.data?.title || '';
   } catch (_) { return ''; }
 }
 
 async function downloadYoutube(url, outputPath) {
-  const videoId = extractVideoId(url);
-  const data = await fetchInnerTube(videoId);
+  // Step 1: Hit Cobalt API buat dapet download URL
+  console.log('Cobalt: requesting download URL...');
+  const cobaltRes = await axios.post(
+    'https://api.cobalt.tools/',
+    {
+      url,
+      downloadMode: 'audio',
+      audioFormat: 'mp3',
+      filenameStyle: 'basic',
+    },
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0',
+      },
+      timeout: 30000,
+    }
+  );
 
-  const formats = data?.streamingData?.adaptiveFormats || [];
-  console.log('InnerTube formats count:', formats.length);
+  const cobaltData = cobaltRes.data;
+  console.log('Cobalt status:', cobaltData?.status);
 
-  // Ambil audio only format terbaik
-  const audioFormats = formats
-    .filter(f => f.mimeType && f.mimeType.startsWith('audio/') && f.url)
-    .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
+  let downloadUrl = null;
 
-  if (!audioFormats.length) {
-    // Fallback ke formats biasa
-    const allFormats = (data?.streamingData?.formats || []).filter(f => f.url);
-    if (!allFormats.length) throw new Error('Tidak ada format audio tersedia dari InnerTube');
-    console.log('Using fallback format:', allFormats[0].mimeType);
-    const res = await axios.get(allFormats[0].url, { responseType: 'stream', timeout: 120000 });
-    return new Promise((resolve, reject) => {
-      const writer = fs.createWriteStream(outputPath);
-      res.data.pipe(writer);
-      writer.on('finish', resolve);
-      writer.on('error', reject);
-    });
+  if (cobaltData.status === 'stream' || cobaltData.status === 'redirect') {
+    downloadUrl = cobaltData.url;
+  } else if (cobaltData.status === 'tunnel') {
+    downloadUrl = cobaltData.url;
+  } else {
+    throw new Error('Cobalt error: ' + (cobaltData.error?.code || JSON.stringify(cobaltData)));
   }
 
-  console.log('Using audio format:', audioFormats[0].mimeType, audioFormats[0].bitrate);
-  const res = await axios.get(audioFormats[0].url, {
+  console.log('Cobalt download URL ok, downloading...');
+
+  // Step 2: Download dari URL yang dikasih Cobalt
+  const res = await axios.get(downloadUrl, {
     responseType: 'stream',
     timeout: 120000,
-    headers: { 'User-Agent': INNERTUBE_CLIENT.userAgent }
+    headers: { 'User-Agent': 'Mozilla/5.0' }
   });
 
   return new Promise((resolve, reject) => {
