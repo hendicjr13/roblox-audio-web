@@ -70,13 +70,16 @@ function convertAudio(inputPath, outputPath, options = {}) {
   });
 }
 
-// List Invidious instances sebagai fallback
+// List Invidious instances - ambil dari https://api.invidious.io/instances.json
 const INVIDIOUS_INSTANCES = [
-  'https://invidious.snopyta.org',
-  'https://inv.riverside.rocks',
-  'https://invidious.kavin.rocks',
-  'https://y.com.sb',
-  'https://invidious.namazso.eu',
+  'https://invidious.materialio.us',
+  'https://invidious.privacydev.net',
+  'https://invidious.fdn.fr',
+  'https://iv.melmac.space',
+  'https://invidious.lunar.icu',
+  'https://invidious.nerdvpn.de',
+  'https://invidious.io.lol',
+  'https://invidious.perennialte.ch',
 ];
 
 function extractVideoId(url) {
@@ -85,20 +88,28 @@ function extractVideoId(url) {
   return match[1];
 }
 
-// Coba tiap instance sampai berhasil
+// Coba tiap instance sampai dapat response JSON valid
 async function fetchInvidious(videoId) {
+  const errors = [];
   for (const instance of INVIDIOUS_INSTANCES) {
     try {
       const res = await axios.get(`${instance}/api/v1/videos/${videoId}`, {
         timeout: 10000,
-        headers: { 'User-Agent': 'Mozilla/5.0' }
+        headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }
       });
-      return res.data;
-    } catch (_) {
+      const data = res.data;
+      // Validasi response — harus object dengan title
+      if (typeof data === 'object' && !Array.isArray(data) && data.title) {
+        console.log(`Invidious OK: ${instance}`);
+        return data;
+      }
+      errors.push(`${instance}: invalid response`);
+    } catch (e) {
+      errors.push(`${instance}: ${e.message}`);
       continue;
     }
   }
-  throw new Error('Semua Invidious instance gagal');
+  throw new Error('Semua Invidious instance gagal: ' + errors.join(' | '));
 }
 
 async function getYoutubeTitle(url) {
