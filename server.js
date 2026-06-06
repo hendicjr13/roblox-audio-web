@@ -113,8 +113,12 @@ async function fetchInnerTube(videoId) {
     }
   );
 
-  console.log('InnerTube status:', res.data?.playabilityStatus?.status);
-  return res.data;
+  const d = res.data;
+  console.log('InnerTube status:', d?.playabilityStatus?.status);
+  console.log('InnerTube reason:', d?.playabilityStatus?.reason || '-');
+  console.log('InnerTube streamingData keys:', Object.keys(d?.streamingData || {}));
+  console.log('InnerTube adaptiveFormats:', (d?.streamingData?.adaptiveFormats || []).length);
+  return d;
 }
 
 async function getYoutubeTitle(url) {
