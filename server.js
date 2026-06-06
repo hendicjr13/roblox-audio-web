@@ -70,41 +70,71 @@ function convertAudio(inputPath, outputPath, options = {}) {
   });
 }
 
-const { spawnSync, spawn } = require('child_process');
+// List Invidious instances sebagai fallback
+const INVIDIOUS_INSTANCES = [
+  'https://invidious.snopyta.org',
+  'https://inv.riverside.rocks',
+  'https://invidious.kavin.rocks',
+  'https://y.com.sb',
+  'https://invidious.namazso.eu',
+];
 
-// Get YouTube title pake yt-dlp
+function extractVideoId(url) {
+  const match = url.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([\w-]{11})/);
+  if (!match) throw new Error('URL YouTube tidak valid');
+  return match[1];
+}
+
+// Coba tiap instance sampai berhasil
+async function fetchInvidious(videoId) {
+  for (const instance of INVIDIOUS_INSTANCES) {
+    try {
+      const res = await axios.get(`${instance}/api/v1/videos/${videoId}`, {
+        timeout: 10000,
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      });
+      return res.data;
+    } catch (_) {
+      continue;
+    }
+  }
+  throw new Error('Semua Invidious instance gagal');
+}
+
 async function getYoutubeTitle(url) {
   try {
-    const result = spawnSync('yt-dlp', [
-      '--print', 'title',
-      '--no-playlist',
-      '--no-warnings',
-      url
-    ], { encoding: 'utf8', timeout: 15000 });
-    return (result.stdout || '').trim();
+    const videoId = extractVideoId(url);
+    const data = await fetchInvidious(videoId);
+    return data.title || '';
   } catch (_) { return ''; }
 }
 
-// Download YouTube audio pake yt-dlp
 async function downloadYoutube(url, outputPath) {
-  return new Promise((resolve, reject) => {
-    const proc = spawn('yt-dlp', [
-      '-x',
-      '--audio-format', 'mp3',
-      '--audio-quality', '0',
-      '--no-playlist',
-      '--no-warnings',
-      '-o', outputPath,
-      url
-    ]);
+  const videoId = extractVideoId(url);
+  const data = await fetchInvidious(videoId);
 
-    let stderr = '';
-    proc.stderr.on('data', d => { stderr += d.toString(); });
-    proc.on('close', code => {
-      if (code === 0) resolve();
-      else reject(new Error('yt-dlp error: ' + stderr.slice(-300)));
-    });
-    proc.on('error', reject);
+  // Ambil audio format terbaik (webm/mp4 audio only)
+  const audioFormats = (data.adaptiveFormats || [])
+    .filter(f => f.type && f.type.startsWith('audio/'))
+    .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
+
+  if (!audioFormats.length) throw new Error('Tidak ada audio format tersedia');
+
+  const audioUrl = audioFormats[0].url;
+  if (!audioUrl) throw new Error('Audio URL tidak tersedia');
+
+  // Download audio stream
+  const res = await axios.get(audioUrl, {
+    responseType: 'stream',
+    timeout: 120000,
+    headers: { 'User-Agent': 'Mozilla/5.0' }
+  });
+
+  return new Promise((resolve, reject) => {
+    const writer = fs.createWriteStream(outputPath);
+    res.data.pipe(writer);
+    writer.on('finish', resolve);
+    writer.on('error', reject);
   });
 }
 
