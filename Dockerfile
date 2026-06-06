@@ -1,10 +1,11 @@
 FROM node:20-slim
 
-# Install ffmpeg + rubberband
 RUN apt-get update && apt-get install -y \
     ffmpeg \
-    librubberband-dev \
-    rubberband-cli \
+    python3 \
+    python3-pip \
+    curl \
+    && pip3 install yt-dlp --break-system-packages \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
