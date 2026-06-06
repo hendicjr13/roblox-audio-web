@@ -89,15 +89,20 @@ async function getYoutubeTitle(url) {
 }
 
 async function downloadYoutube(url, outputPath) {
-  // Step 1: Hit Cobalt API buat dapet download URL
   console.log('Cobalt: requesting download URL...');
+
+  // Pake https module langsung buat handle redirect + stream properly
+  const https = require('https');
+  const http = require('http');
+
   const cobaltRes = await axios.post(
     'https://cobalt-production-571e.up.railway.app/',
     {
       url,
       downloadMode: 'audio',
-      audioFormat: 'mp3',
+      audioFormat: 'best',
       filenameStyle: 'basic',
+      alwaysProxy: true,
     },
     {
       headers: {
@@ -111,41 +116,47 @@ async function downloadYoutube(url, outputPath) {
 
   const cobaltData = cobaltRes.data;
   console.log('Cobalt status:', cobaltData?.status);
+  console.log('Cobalt url:', cobaltData?.url?.substring(0, 80));
 
-  let downloadUrl = null;
-
-  if (cobaltData.status === 'stream' || cobaltData.status === 'redirect') {
-    downloadUrl = cobaltData.url;
-  } else if (cobaltData.status === 'tunnel') {
-    downloadUrl = cobaltData.url;
-  } else {
+  if (!cobaltData.url) {
     throw new Error('Cobalt error: ' + (cobaltData.error?.code || JSON.stringify(cobaltData)));
   }
 
-  console.log('Cobalt download URL ok, downloading...');
-
-  // Step 2: Download dari URL yang dikasih Cobalt
-  const res = await axios.get(downloadUrl, {
-    responseType: 'stream',
-    timeout: 120000,
-    headers: {
-      'User-Agent': 'Mozilla/5.0',
-      'Accept': '*/*',
-    }
-  });
-
-  console.log('Cobalt response content-type:', res.headers['content-type']);
-  console.log('Cobalt response status:', res.status);
-
+  // Download pake native https/http biar handle redirect & stream dengan bener
   return new Promise((resolve, reject) => {
+    const downloadUrl = cobaltData.url;
     const writer = fs.createWriteStream(outputPath);
-    res.data.pipe(writer);
-    writer.on('finish', () => {
-      const size = fs.statSync(outputPath).size;
-      console.log('Downloaded file size:', size, 'bytes');
-      resolve();
-    });
-    writer.on('error', reject);
+
+    const makeRequest = (reqUrl) => {
+      const lib = reqUrl.startsWith('https') ? https : http;
+      lib.get(reqUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0',
+          'Accept': '*/*',
+        }
+      }, (res) => {
+        console.log('Download status:', res.statusCode, 'content-type:', res.headers['content-type']);
+
+        // Follow redirect
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          console.log('Following redirect to:', res.headers.location.substring(0, 80));
+          makeRequest(res.headers.location);
+          return;
+        }
+
+        res.pipe(writer);
+        writer.on('finish', () => {
+          const size = fs.statSync(outputPath).size;
+          console.log('Downloaded file size:', size, 'bytes');
+          if (size === 0) reject(new Error('Downloaded file kosong'));
+          else resolve();
+        });
+        writer.on('error', reject);
+        res.on('error', reject);
+      }).on('error', reject);
+    };
+
+    makeRequest(downloadUrl);
   });
 }
 
