@@ -26,22 +26,13 @@ app.use(express.static('public'));
 
 const previews = {};
 
-// Force atempo — rubberband artifact di ratio tinggi
 console.log('Audio engine: atempo (optimized)');
 
 function buildAudioFilters(speedMultiplier, amplifyDb) {
   const filters = [];
-
-  // asetrate: naikin speed + pitch sekaligus (kayak Change Speed di Audacity)
-  // suara jadi beda dari ori → efektif bypass copyright fingerprint
   filters.push(`asetrate=44100*${speedMultiplier.toFixed(4)}`);
-
-  // Resample balik ke 44100 setelah rate diubah
   filters.push('aresample=44100');
-
-  // Amplify
   if (amplifyDb !== 0) filters.push(`volume=${amplifyDb}dB`);
-
   return filters;
 }
 
@@ -55,12 +46,9 @@ function convertAudio(inputPath, outputPath, options = {}) {
       .audioFrequency(44100)
       .audioChannels(2);
 
-    if (!asIs) {
-      cmd.audioFilters(buildAudioFilters(speedMultiplier, parseFloat(amplify)));
-    }
+    if (!asIs) cmd.audioFilters(buildAudioFilters(speedMultiplier, parseFloat(amplify)));
 
-    cmd
-      .toFormat('ogg')
+    cmd.toFormat('ogg')
       .audioCodec('libvorbis')
       .audioBitrate('192k')
       .on('start', c => console.log('FFmpeg:', c))
@@ -70,7 +58,6 @@ function convertAudio(inputPath, outputPath, options = {}) {
   });
 }
 
-// Cobalt API — open source YouTube downloader, maintain bypass sendiri
 function extractVideoId(url) {
   const match = url.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([\w-]{11})/);
   if (!match) throw new Error('URL YouTube tidak valid');
@@ -79,71 +66,38 @@ function extractVideoId(url) {
 
 async function getYoutubeTitle(url) {
   try {
-    // Ambil title dari YouTube oEmbed — simple, ga butuh auth
     const videoId = extractVideoId(url);
-    const res = await axios.get(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`, {
-      timeout: 10000
-    });
+    const res = await axios.get(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`, { timeout: 10000 });
     return res.data?.title || '';
   } catch (_) { return ''; }
 }
 
 async function downloadYoutube(url, outputPath) {
-  console.log('Cobalt: requesting download URL...');
-
-  // Pake https module langsung buat handle redirect + stream properly
   const https = require('https');
   const http = require('http');
 
+  console.log('Cobalt: requesting download URL...');
   const cobaltRes = await axios.post(
     'https://cobalt-production-571e.up.railway.app/',
-    {
-      url,
-      downloadMode: 'audio',
-      audioFormat: 'best',
-      filenameStyle: 'basic',
-      alwaysProxy: true,
-    },
-    {
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0',
-      },
-      timeout: 30000,
-    }
+    { url, downloadMode: 'audio', audioFormat: 'best', filenameStyle: 'basic', alwaysProxy: true },
+    { headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' }, timeout: 30000 }
   );
 
   const cobaltData = cobaltRes.data;
   console.log('Cobalt status:', cobaltData?.status);
-  console.log('Cobalt url:', cobaltData?.url?.substring(0, 80));
 
-  if (!cobaltData.url) {
-    throw new Error('Cobalt error: ' + (cobaltData.error?.code || JSON.stringify(cobaltData)));
-  }
+  if (!cobaltData.url) throw new Error('Cobalt error: ' + (cobaltData.error?.code || JSON.stringify(cobaltData)));
 
-  // Download pake native https/http biar handle redirect & stream dengan bener
   return new Promise((resolve, reject) => {
-    const downloadUrl = cobaltData.url;
     const writer = fs.createWriteStream(outputPath);
-
     const makeRequest = (reqUrl) => {
       const lib = reqUrl.startsWith('https') ? https : http;
-      lib.get(reqUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0',
-          'Accept': '*/*',
-        }
-      }, (res) => {
+      lib.get(reqUrl, { headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': '*/*' } }, (res) => {
         console.log('Download status:', res.statusCode, 'content-type:', res.headers['content-type']);
-
-        // Follow redirect
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          console.log('Following redirect to:', res.headers.location.substring(0, 80));
           makeRequest(res.headers.location);
           return;
         }
-
         res.pipe(writer);
         writer.on('finish', () => {
           const size = fs.statSync(outputPath).size;
@@ -155,8 +109,7 @@ async function downloadYoutube(url, outputPath) {
         res.on('error', reject);
       }).on('error', reject);
     };
-
-    makeRequest(downloadUrl);
+    makeRequest(cobaltData.url);
   });
 }
 
@@ -168,19 +121,9 @@ async function uploadToRoblox(filePath, apiKey, userId, displayName) {
     assetType: 'Audio',
     creationContext: { creator: { userId: parseInt(userId) } }
   }));
-  form.append('fileContent', fs.createReadStream(filePath), {
-    filename: 'audio.ogg',
-    contentType: 'audio/ogg'
-  });
+  form.append('fileContent', fs.createReadStream(filePath), { filename: 'audio.ogg', contentType: 'audio/ogg' });
   const res = await axios.post('https://apis.roblox.com/assets/v1/assets', form, {
     headers: { ...form.getHeaders(), 'x-api-key': apiKey }
-  });
-  return res.data;
-}
-
-async function pollOperationStatus(operationId, apiKey) {
-  const res = await axios.get(`https://apis.roblox.com/assets/v1/operations/${operationId}`, {
-    headers: { 'x-api-key': apiKey }
   });
   return res.data;
 }
@@ -200,6 +143,8 @@ function scheduleCleanup(filePath, previewId) {
     if (previewId) delete previews[previewId];
   }, 10 * 60 * 1000);
 }
+
+// ── Routes ────────────────────────────────────────────────────────────
 
 app.get('/info', (req, res) => res.json({ engine: 'atempo-optimized' }));
 
@@ -276,13 +221,34 @@ app.post('/upload-url', async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
+// Poll operation status
 app.get('/status/:operationId', async (req, res) => {
   try {
     const { apiKey } = req.query;
     if (!apiKey) return res.status(400).json({ error: 'apiKey required' });
-    const data = await pollOperationStatus(req.params.operationId, apiKey);
-    res.json({ success: true, data });
+    const result = await axios.get(
+      `https://apis.roblox.com/assets/v1/operations/${req.params.operationId}`,
+      { headers: { 'x-api-key': apiKey } }
+    );
+    res.json({ success: true, data: result.data });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// Poll moderation status
+app.get('/moderation/:assetId', async (req, res) => {
+  try {
+    const { apiKey } = req.query;
+    if (!apiKey) return res.status(400).json({ error: 'apiKey required' });
+    const result = await axios.get(
+      `https://apis.roblox.com/assets/v1/assets/${req.params.assetId}`,
+      { headers: { 'x-api-key': apiKey } }
+    );
+    console.log('Moderation response:', JSON.stringify(result.data));
+    res.json({ success: true, data: result.data });
+  } catch (err) {
+    console.log('Moderation error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 const PORT = process.env.PORT || 3000;
