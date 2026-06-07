@@ -588,6 +588,21 @@
     if (item) { Object.assign(item, updates); renderHistory(); }
   }
 
+  function getBadge(item) {
+    if (item.status === 'processing') return '<span class="badge badge-processing"><span class="spinner"></span> Uploading...</span>';
+    if (item.status === 'uploaded') return '<span class="badge badge-processing"><span class="spinner"></span> Uploaded · Under Review</span>';
+    if (item.status === 'approved') return '<span class="badge badge-accepted">✅ Approved</span>';
+    if (item.status === 'rejected_moderation') return '<span class="badge badge-rejected">❌ Rejected by Moderation</span>';
+    if (item.status === 'rejected') return '<span class="badge badge-rejected">❌ Upload Failed</span>';
+    return '<span class="badge badge-queued">⏳ Queued</span>';
+  }
+
+  function getItemClass(item) {
+    if (item.status === 'approved') return 'accepted';
+    if (item.status === 'rejected' || item.status === 'rejected_moderation') return 'rejected';
+    return 'processing';
+  }
+
   function renderHistory() {
     const list = document.getElementById('historyList');
     document.getElementById('historyCount').textContent = historyItems.length;
@@ -598,26 +613,19 @@
     }
 
     list.innerHTML = historyItems.map(item => {
-      const statusClass = item.status === 'accepted' ? 'accepted' : item.status === 'rejected' ? 'rejected' : 'processing';
-      const badge = item.status === 'accepted'
-        ? '<span class="badge badge-accepted">✅ Accepted</span>'
-        : item.status === 'rejected'
-        ? '<span class="badge badge-rejected">❌ Rejected</span>'
-        : '<span class="badge badge-processing"><span class="spinner"></span> Processing</span>';
-
       const assetIdHtml = item.assetId
         ? `<div class="asset-id" onclick="copyText('rbxassetid://${item.assetId}')" title="Klik untuk copy">📋 rbxassetid://${item.assetId}</div>`
         : '';
 
       return `
-        <div class="history-item ${statusClass}">
+        <div class="history-item ${getItemClass(item)}">
           <div class="history-title" title="${item.name}">${item.name}</div>
           <div class="history-meta">
             <div class="meta-tag">Speed <span>${item.speed}x</span></div>
             <div class="meta-tag">Playback <span>${(1/item.speed).toFixed(2)}x</span></div>
             <div class="meta-tag">Amp <span>${item.amp}dB</span></div>
           </div>
-          <div class="history-status">${badge}</div>
+          <div class="history-status">${getBadge(item)}</div>
           ${assetIdHtml}
         </div>
       `;
@@ -634,11 +642,12 @@
     const apiKey = document.getElementById('apiKey').value.trim();
     if (!apiKey || !item.operationId) return;
 
+    // Stage 1: Poll operation sampai done → dapet assetId
     let attempts = 0;
-    const poll = setInterval(async () => {
+    const pollOp = setInterval(async () => {
       attempts++;
       if (attempts > 60) {
-        clearInterval(poll);
+        clearInterval(pollOp);
         updateHistoryItem(item.id, { status: 'rejected' });
         return;
       }
@@ -648,15 +657,43 @@
         if (!data.success) return;
         const op = data.data;
         if (op.done) {
-          clearInterval(poll);
+          clearInterval(pollOp);
           if (op.response && op.response.assetId) {
-            updateHistoryItem(item.id, { status: 'accepted', assetId: op.response.assetId });
+            const assetId = op.response.assetId;
+            updateHistoryItem(item.id, { status: 'uploaded', assetId });
+            // Stage 2: Poll moderation status
+            startModerationPolling(item.id, assetId, apiKey);
           } else {
             updateHistoryItem(item.id, { status: 'rejected' });
           }
         }
       } catch (_) {}
     }, 3000);
+  }
+
+  function startModerationPolling(itemId, assetId, apiKey) {
+    let attempts = 0;
+    const pollMod = setInterval(async () => {
+      attempts++;
+      if (attempts > 80) {
+        clearInterval(pollMod);
+        return;
+      }
+      try {
+        const res = await fetch(`/moderation/${assetId}?apiKey=${encodeURIComponent(apiKey)}`);
+        const data = await res.json();
+        if (!data.success) return;
+        const decision = data.data?.moderationResult?.decision;
+        if (decision === 'APPROVED') {
+          clearInterval(pollMod);
+          updateHistoryItem(itemId, { status: 'approved' });
+        } else if (decision === 'REJECTED') {
+          clearInterval(pollMod);
+          updateHistoryItem(itemId, { status: 'rejected_moderation' });
+        }
+        // Kalau belum ada decision, lanjut polling
+      } catch (_) {}
+    }, 5000);
   }
 
   // ── Preview ────────────────────────────────────────────────────────
