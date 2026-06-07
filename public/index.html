@@ -6,44 +6,230 @@
   <title>Roblox Audio Uploader</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #0f0f0f; color: #fff; font-family: 'Segoe UI', sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 40px 20px; }
+
+    body {
+      background: #0f0f0f; color: #fff;
+      font-family: 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* ── Layout ── */
+    .main-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      overflow-y: auto;
+    }
+
+    .sidebar {
+      width: 340px;
+      min-width: 340px;
+      background: #141414;
+      border-left: 1px solid #222;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      position: sticky;
+      top: 0;
+    }
+
+    .sidebar-header {
+      padding: 20px;
+      border-bottom: 1px solid #222;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .sidebar-header h2 {
+      font-size: 0.85rem;
+      color: #aaa;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .sidebar-count {
+      background: #00d4ff22;
+      color: #00d4ff;
+      border-radius: 20px;
+      padding: 2px 10px;
+      font-size: 0.8rem;
+      font-weight: bold;
+    }
+
+    .sidebar-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .sidebar-empty {
+      color: #444;
+      font-size: 0.85rem;
+      text-align: center;
+      margin-top: 40px;
+    }
+
+    /* ── History Item ── */
+    .history-item {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 10px;
+      padding: 14px;
+      transition: border-color 0.2s;
+    }
+
+    .history-item.accepted { border-color: #00ff8844; }
+    .history-item.rejected { border-color: #ff444444; }
+    .history-item.processing { border-color: #00d4ff44; }
+
+    .history-title {
+      font-size: 0.88rem;
+      font-weight: bold;
+      color: #fff;
+      margin-bottom: 8px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .history-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .meta-tag {
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-size: 0.75rem;
+      color: #888;
+    }
+
+    .meta-tag span { color: #00d4ff; font-weight: bold; }
+
+    .history-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge {
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: bold;
+    }
+
+    .badge-queued { background: #333; color: #aaa; }
+    .badge-processing { background: #0d1f2e; color: #00d4ff; border: 1px solid #00d4ff44; }
+    .badge-accepted { background: #0d2e1a; color: #00ff88; border: 1px solid #00ff8844; }
+    .badge-rejected { background: #2e0d0d; color: #ff4444; border: 1px solid #ff444444; }
+
+    .asset-id {
+      font-size: 0.75rem;
+      color: #ffd600;
+      font-family: monospace;
+      word-break: break-all;
+      margin-top: 6px;
+      cursor: pointer;
+    }
+
+    .asset-id:hover { text-decoration: underline; }
+
+    .spinner {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border: 2px solid #00d4ff44;
+      border-top-color: #00d4ff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Main UI ── */
     h1 { font-size: 1.8rem; margin-bottom: 8px; color: #00d4ff; }
     p.sub { color: #888; margin-bottom: 30px; font-size: 0.9rem; }
-    .card { background: #1a1a1a; border-radius: 12px; padding: 24px; width: 100%; max-width: 540px; margin-bottom: 20px; }
+
+    .card {
+      background: #1a1a1a; border-radius: 12px;
+      padding: 24px; width: 100%; max-width: 540px; margin-bottom: 20px;
+    }
+
     .card h2 { font-size: 0.85rem; margin-bottom: 16px; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
-    input[type=text], input[type=password] { width: 100%; padding: 12px; background: #111; border: 1px solid #333; border-radius: 8px; color: #fff; margin-bottom: 12px; font-size: 0.95rem; }
+
+    input[type=text], input[type=password] {
+      width: 100%; padding: 12px; background: #111;
+      border: 1px solid #333; border-radius: 8px;
+      color: #fff; margin-bottom: 12px; font-size: 0.95rem;
+    }
+
     input::placeholder { color: #555; }
-    .btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; transition: background 0.2s; margin-bottom: 10px; }
+
+    .btn {
+      width: 100%; padding: 14px; border: none;
+      border-radius: 8px; font-weight: bold; font-size: 1rem;
+      cursor: pointer; transition: background 0.2s; margin-bottom: 10px;
+    }
+
     .btn-primary { background: #00d4ff; color: #000; }
     .btn-primary:hover { background: #00b8d9; }
     .btn-success { background: #00c853; color: #000; }
     .btn-success:hover { background: #00b348; }
     .btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+
     .status { margin-top: 8px; padding: 12px; border-radius: 8px; font-size: 0.9rem; display: none; }
     .status.success { background: #0d2e1a; color: #00ff88; border: 1px solid #00ff88; }
     .status.error { background: #2e0d0d; color: #ff4444; border: 1px solid #ff4444; }
     .status.loading { background: #1a1a2e; color: #00d4ff; border: 1px solid #00d4ff; }
+
     .player { background: #111; border-radius: 8px; padding: 16px; margin-bottom: 12px; display: none; }
     .player p { color: #aaa; font-size: 0.85rem; margin-bottom: 8px; }
     audio { width: 100%; }
+
     .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
     .tab { flex: 1; padding: 10px; background: #111; border: 1px solid #333; border-radius: 8px; color: #888; cursor: pointer; text-align: center; font-size: 0.9rem; transition: all 0.2s; }
     .tab.active { background: #00d4ff; color: #000; border-color: #00d4ff; font-weight: bold; }
+
     #mp3-section, #url-section { display: none; }
     #mp3-section.active, #url-section.active { display: block; }
-    .drop-area { border: 2px dashed #333; border-radius: 8px; padding: 30px; text-align: center; cursor: pointer; margin-bottom: 16px; transition: border-color 0.2s; }
-    .drop-area:hover { border-color: #00d4ff; }
+
+    /* Multi file list */
+    .file-list { margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px; }
+    .file-item {
+      background: #111; border: 1px solid #333; border-radius: 8px;
+      padding: 10px 12px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .file-item-name { font-size: 0.85rem; color: #ccc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 80%; }
+    .file-item-remove { color: #ff4444; cursor: pointer; font-size: 1rem; flex-shrink: 0; }
+    .file-item-remove:hover { color: #ff6666; }
+
+    .drop-area { border: 2px dashed #333; border-radius: 8px; padding: 30px; text-align: center; cursor: pointer; margin-bottom: 12px; transition: border-color 0.2s; }
+    .drop-area:hover, .drop-area.dragover { border-color: #00d4ff; }
     .drop-area p { color: #555; font-size: 0.9rem; }
+
     .preset-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
     .preset-btn { padding: 7px 14px; border-radius: 20px; border: 1px solid #444; background: #111; color: #aaa; font-size: 0.82rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
     .preset-btn:hover { border-color: #00d4ff; color: #00d4ff; }
     .preset-btn.active { background: #00d4ff; color: #000; border-color: #00d4ff; font-weight: bold; }
+
     .slider-group { margin-bottom: 18px; }
     .slider-label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
     .slider-label-row span { color: #aaa; font-size: 0.88rem; }
     .slider-val { font-weight: bold; color: #00d4ff; font-size: 1rem; min-width: 52px; text-align: right; }
     input[type=range] { width: 100%; accent-color: #00d4ff; height: 6px; margin-bottom: 4px; cursor: pointer; }
     .slider-ticks { display: flex; justify-content: space-between; font-size: 0.68rem; color: #444; }
+
     .info-box { background: #0d1f2e; border: 1px solid #00d4ff33; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
     .info-box .info-title { font-size: 0.75rem; color: #00d4ff; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
     .info-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
@@ -54,8 +240,10 @@
     .val-green { color: #00ff88; }
     .val-yellow { color: #ffd600; }
     .divider { border: none; border-top: 1px solid #222; margin: 10px 0; }
+
     .roblox-tip { background: #1a1a0d; border: 1px solid #ffd60033; border-radius: 8px; padding: 12px; margin-bottom: 0; font-size: 0.85rem; color: #ffd600; line-height: 1.5; }
     .roblox-tip strong { display: block; margin-bottom: 4px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.7; }
+
     .toggle-row { display: flex; align-items: center; justify-content: space-between; background: #111; border: 1px solid #333; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; cursor: pointer; transition: border-color 0.2s; }
     .toggle-row:hover { border-color: #555; }
     .toggle-label { font-size: 0.9rem; color: #ccc; }
@@ -68,55 +256,56 @@
     .toggle-switch input:checked + .toggle-slider:before { transform: translateX(18px); }
     .speed-dimmed { opacity: 0.35; pointer-events: none; }
 
-    /* Upload status card */
-    .upload-status-card { background: #111; border: 1px solid #333; border-radius: 10px; padding: 16px; margin-top: 12px; display: none; }
-    .upload-status-card .title { font-size: 0.9rem; color: #fff; font-weight: bold; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .upload-status-card .meta { font-size: 0.78rem; color: #666; margin-bottom: 12px; }
-    .badge-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    .badge { padding: 4px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: bold; }
-    .badge-queued { background: #333; color: #aaa; }
-    .badge-processing { background: #1a2e1a; color: #00d4ff; border: 1px solid #00d4ff55; }
-    .badge-accepted { background: #0d2e1a; color: #00ff88; border: 1px solid #00ff8855; }
-    .badge-rejected { background: #2e0d0d; color: #ff4444; border: 1px solid #ff444455; }
-    .asset-id { font-size: 0.82rem; color: #ffd600; font-family: monospace; }
-    .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid #00d4ff44; border-top-color: #00d4ff; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 6px; vertical-align: middle; }
-    @keyframes spin { to { transform: rotate(360deg); } }
     .name-input-wrap { position: relative; }
     .name-input-wrap .loading-dot { position: absolute; right: 12px; top: 50%; transform: translateY(-65%); width: 8px; height: 8px; border: 2px solid #00d4ff44; border-top-color: #00d4ff; border-radius: 50%; animation: spin 0.8s linear infinite; display: none; }
   </style>
 </head>
 <body>
+
+<!-- ── Main Area ── -->
+<div class="main-area">
   <h1>🎵 Roblox Audio Uploader</h1>
   <p class="sub">Convert, preview & upload audio langsung ke Roblox</p>
 
+  <!-- Akun -->
   <div class="card">
     <h2>🔑 Akun Roblox</h2>
     <input type="text" id="userId" placeholder="Roblox User ID (contoh: 9217554647)" oninput="saveCredentials()">
     <input type="password" id="apiKey" placeholder="API Key dari Roblox Creator Hub" oninput="saveCredentials()">
   </div>
 
+  <!-- Sumber Audio -->
   <div class="card">
     <h2>🎵 Sumber Audio</h2>
     <div class="tabs">
       <div class="tab active" onclick="switchTab('url')">🔗 YouTube URL</div>
       <div class="tab" onclick="switchTab('mp3')">📁 Upload MP3</div>
     </div>
+
     <div id="url-section" class="active">
       <input type="text" id="audioUrl" placeholder="Paste link YouTube..." oninput="onUrlInput(this.value)">
     </div>
+
     <div id="mp3-section">
-      <div class="drop-area" onclick="document.getElementById('mp3File').click()">
+      <div class="drop-area" id="dropArea"
+        onclick="document.getElementById('mp3File').click()"
+        ondragover="onDragOver(event)"
+        ondragleave="onDragLeave(event)"
+        ondrop="onDrop(event)">
         <p>🎵 Klik atau drag & drop file MP3</p>
-        <p style="margin-top:8px;font-size:0.8rem;" id="fileName">Maks 15MB</p>
+        <p style="margin-top:8px;font-size:0.8rem;color:#444;">Bisa pilih banyak file sekaligus</p>
       </div>
-      <input type="file" id="mp3File" accept=".mp3" style="display:none" onchange="onFileSelect(this)">
+      <input type="file" id="mp3File" accept=".mp3" multiple style="display:none" onchange="onFilesSelect(this.files)">
+      <div class="file-list" id="fileList"></div>
     </div>
+
     <div class="name-input-wrap">
-      <input type="text" id="displayName" placeholder="Nama audio di Roblox (auto detect dari judul)">
+      <input type="text" id="displayName" placeholder="Nama audio di Roblox (auto detect)">
       <div class="loading-dot" id="titleLoader"></div>
     </div>
   </div>
 
+  <!-- Speed Config -->
   <div class="card">
     <h2>⚙️ Advanced Settings</h2>
     <label class="toggle-row" onclick="toggleAsIs()">
@@ -133,11 +322,11 @@
       <div style="margin-bottom:10px;">
         <div style="font-size:0.8rem;color:#666;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">Preset</div>
         <div class="preset-row">
-          <div class="preset-btn" onclick="applyPreset(2.1, -2)">Lambat 2.1x</div>
-          <div class="preset-btn active" onclick="applyPreset(2.3, -4)">Default 2.3x</div>
-          <div class="preset-btn" onclick="applyPreset(2.5, -5)">Cepat 2.5x</div>
-          <div class="preset-btn" onclick="applyPreset(2.7, -6)">Lebih Cepat 2.7x</div>
-          <div class="preset-btn" onclick="applyPreset(2.9, -7)">Ultra 2.9x</div>
+          <div class="preset-btn" onclick="applyPreset(2.1,-2)">Lambat 2.1x</div>
+          <div class="preset-btn active" onclick="applyPreset(2.3,-4)">Default 2.3x</div>
+          <div class="preset-btn" onclick="applyPreset(2.5,-5)">Cepat 2.5x</div>
+          <div class="preset-btn" onclick="applyPreset(2.7,-6)">Lebih Cepat 2.7x</div>
+          <div class="preset-btn" onclick="applyPreset(2.9,-7)">Ultra 2.9x</div>
         </div>
       </div>
       <div class="slider-group">
@@ -166,23 +355,11 @@
       </div>
       <div class="info-box">
         <div class="info-title">📊 Kalkulasi Otomatis</div>
-        <div class="info-row">
-          <span class="lbl">PlaybackSpeed (Roblox)</span>
-          <span class="val val-blue" id="infoPlayback">0.43x</span>
-        </div>
-        <div class="info-row">
-          <span class="lbl">Lagu di-speed up</span>
-          <span class="val val-green" id="infoSpeedUp">2.33x</span>
-        </div>
-        <div class="info-row">
-          <span class="lbl">Amplifikasi</span>
-          <span class="val val-yellow" id="infoAmp">-4 dB</span>
-        </div>
+        <div class="info-row"><span class="lbl">PlaybackSpeed (Roblox)</span><span class="val val-blue" id="infoPlayback">0.43x</span></div>
+        <div class="info-row"><span class="lbl">Lagu di-speed up</span><span class="val val-green" id="infoSpeedUp">2.33x</span></div>
+        <div class="info-row"><span class="lbl">Amplifikasi</span><span class="val val-yellow" id="infoAmp">-4 dB</span></div>
         <hr class="divider">
-        <div class="info-row">
-          <span class="lbl">Hasil di Roblox</span>
-          <span class="val val-green">✅ Normal (1.00x)</span>
-        </div>
+        <div class="info-row"><span class="lbl">Hasil di Roblox</span><span class="val val-green">✅ Normal (1.00x)</span></div>
       </div>
       <div class="roblox-tip">
         <strong>💡 Setting di Roblox Studio</strong>
@@ -191,6 +368,7 @@
     </div>
   </div>
 
+  <!-- Action -->
   <div class="card">
     <h2>🚀 Action</h2>
     <button class="btn btn-primary" id="previewBtn" onclick="handlePreview()">🎧 Convert & Preview</button>
@@ -200,295 +378,406 @@
     </div>
     <button class="btn btn-success" id="uploadBtn" onclick="handleUpload()" style="display:none">🚀 Upload ke Roblox</button>
     <div class="status" id="status"></div>
-
-    <!-- Upload status card -->
-    <div class="upload-status-card" id="uploadStatusCard">
-      <div class="title" id="uploadTitle">-</div>
-      <div class="meta" id="uploadMeta">-</div>
-      <div class="badge-row">
-        <span class="badge badge-queued" id="uploadBadge">⏳ Menunggu</span>
-        <span class="asset-id" id="uploadAssetId" style="display:none"></span>
-      </div>
-    </div>
   </div>
+</div>
 
-  <script>
-    let currentTab = 'url';
-    let isAsIs = false;
-    let currentSpeed = 0.43;
-    let currentAmp = -4;
-    let currentDur = 400;
-    let titleDebounce = null;
-    let pollInterval = null;
+<!-- ── Sidebar ── -->
+<div class="sidebar">
+  <div class="sidebar-header">
+    <h2>📋 Upload History</h2>
+    <span class="sidebar-count" id="historyCount">0</span>
+  </div>
+  <div class="sidebar-list" id="historyList">
+    <div class="sidebar-empty">Belum ada upload.<br>Upload audio untuk mulai tracking.</div>
+  </div>
+</div>
 
-    function switchTab(tab) {
-      currentTab = tab;
-      document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', (i === 0) === (tab === 'url')));
-      document.getElementById('url-section').classList.toggle('active', tab === 'url');
-      document.getElementById('mp3-section').classList.toggle('active', tab === 'mp3');
-      resetPlayer();
-    }
+<script>
+  // ── State ──────────────────────────────────────────────────────────
+  let currentTab = 'url';
+  let isAsIs = false;
+  let currentSpeed = 0.43;
+  let currentAmp = -4;
+  let currentDur = 400;
+  let titleDebounce = null;
+  let selectedFiles = [];
+  let historyItems = [];
 
-    // Auto detect title dari YouTube URL
-    function onUrlInput(val) {
-      clearTimeout(titleDebounce);
-      const nameInput = document.getElementById('displayName');
-      // Clear nama setiap kali URL berubah
-      nameInput.value = '';
-      nameInput.style.borderColor = '#333';
-      if (!val.includes('youtube.com') && !val.includes('youtu.be')) return;
-      document.getElementById('titleLoader').style.display = 'block';
-      titleDebounce = setTimeout(async () => {
-        try {
-          const res = await fetch('/get-title', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: val })
-          });
-          const data = await res.json();
-          if (data.success && data.title) {
-            nameInput.value = data.title;
-            nameInput.style.borderColor = '#00d4ff';
-          }
-        } catch (_) {}
-        document.getElementById('titleLoader').style.display = 'none';
-      }, 800);
-    }
+  // ── Credentials ────────────────────────────────────────────────────
+  function saveCredentials() {
+    localStorage.setItem('roblox_userId', document.getElementById('userId').value);
+    localStorage.setItem('roblox_apiKey', document.getElementById('apiKey').value);
+  }
 
-    // Auto detect nama dari file MP3
-    function onFileSelect(input) {
-      if (!input.files[0]) return;
-      const file = input.files[0];
-      document.getElementById('fileName').textContent = file.name;
-      // Selalu replace nama dengan file baru
-      const nameInput = document.getElementById('displayName');
-      nameInput.value = file.name.replace(/\.[^/.]+$/, '');
-      nameInput.style.borderColor = '#00d4ff';
-    }
+  function loadCredentials() {
+    const userId = localStorage.getItem('roblox_userId');
+    const apiKey = localStorage.getItem('roblox_apiKey');
+    if (userId) document.getElementById('userId').value = userId;
+    if (apiKey) document.getElementById('apiKey').value = apiKey;
+  }
 
-    function applyPreset(speedFactor, amp) {
-      const robloxPlayback = (1 / speedFactor).toFixed(2);
-      document.getElementById('speedSlider').value = robloxPlayback;
-      document.getElementById('ampSlider').value = amp;
-      onSpeedSlider(robloxPlayback, false);
-      onAmpSlider(amp);
-      document.querySelectorAll('.preset-btn').forEach(b => {
-        const sf = parseFloat(b.textContent);
-        b.classList.toggle('active', Math.abs(sf - speedFactor) < 0.05);
-      });
-      resetPlayer();
-    }
+  // ── Tab ────────────────────────────────────────────────────────────
+  function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', (i === 0) === (tab === 'url')));
+    document.getElementById('url-section').classList.toggle('active', tab === 'url');
+    document.getElementById('mp3-section').classList.toggle('active', tab === 'mp3');
+    resetPlayer();
+  }
 
-    function onSpeedSlider(val, clearPreset = true) {
-      currentSpeed = parseFloat(val);
-      const speedUp = 1 / currentSpeed;
-      document.getElementById('speedDisplay').textContent = currentSpeed.toFixed(2) + 'x';
-      document.getElementById('infoPlayback').textContent = currentSpeed.toFixed(2) + 'x';
-      document.getElementById('infoSpeedUp').textContent = speedUp.toFixed(2) + 'x';
-      document.getElementById('tipSpeed').textContent = currentSpeed.toFixed(2);
-      if (clearPreset) document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-      resetPlayer();
-    }
+  // ── Multi File ─────────────────────────────────────────────────────
+  function onDragOver(e) {
+    e.preventDefault();
+    document.getElementById('dropArea').classList.add('dragover');
+  }
 
-    function onAmpSlider(val) {
-      currentAmp = parseFloat(val);
-      document.getElementById('ampDisplay').textContent = (currentAmp >= 0 ? '+' : '') + currentAmp + ' dB';
-      document.getElementById('infoAmp').textContent = (currentAmp >= 0 ? '+' : '') + currentAmp + ' dB';
-      resetPlayer();
-    }
+  function onDragLeave(e) {
+    document.getElementById('dropArea').classList.remove('dragover');
+  }
 
-    function onDurSlider(val) {
-      currentDur = parseInt(val);
-      document.getElementById('durDisplay').textContent = currentDur + 's';
-      resetPlayer();
-    }
+  function onDrop(e) {
+    e.preventDefault();
+    document.getElementById('dropArea').classList.remove('dragover');
+    const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.mp3'));
+    addFiles(files);
+  }
 
-    function toggleAsIs() {
-      const cb = document.getElementById('asIsToggle');
-      setTimeout(() => {
-        isAsIs = cb.checked;
-        document.getElementById('speedControls').classList.toggle('speed-dimmed', isAsIs);
-        resetPlayer();
-      }, 0);
-    }
+  function onFilesSelect(files) {
+    addFiles(Array.from(files));
+  }
 
-    function showStatus(type, msg) {
-      const el = document.getElementById('status');
-      el.className = 'status ' + type;
-      el.textContent = msg;
-      el.style.display = 'block';
-    }
-
-    function resetPlayer() {
-      document.getElementById('playerBox').style.display = 'none';
-      document.getElementById('uploadBtn').style.display = 'none';
-      document.getElementById('audioPlayer').src = '';
-      document.getElementById('uploadStatusCard').style.display = 'none';
-      if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
-    }
-
-    function getPayload() {
-      return { robloxPlayback: currentSpeed, asIs: isAsIs, amplify: currentAmp, maxDuration: currentDur };
-    }
-
-    // ── Status polling ────────────────────────────────────────────────
-    function startPolling(operationId, displayName) {
-      const apiKey = document.getElementById('apiKey').value.trim();
-      const card = document.getElementById('uploadStatusCard');
-      const badge = document.getElementById('uploadBadge');
-      const assetIdEl = document.getElementById('uploadAssetId');
-      const titleEl = document.getElementById('uploadTitle');
-      const metaEl = document.getElementById('uploadMeta');
-
-      card.style.display = 'block';
-      titleEl.textContent = displayName || 'Audio';
-      metaEl.textContent = `Speed: ${(1/currentSpeed).toFixed(2)}x  ·  Amplify: ${currentAmp}dB  ·  Max: ${currentDur}s`;
-      badge.className = 'badge badge-processing';
-      badge.innerHTML = '<span class="spinner"></span> Processing...';
-      assetIdEl.style.display = 'none';
-
-      let attempts = 0;
-      pollInterval = setInterval(async () => {
-        attempts++;
-        if (attempts > 40) {
-          clearInterval(pollInterval);
-          badge.className = 'badge badge-queued';
-          badge.textContent = '⏳ Cek manual di Roblox';
-          return;
-        }
-        try {
-          const res = await fetch(`/status/${operationId}?apiKey=${encodeURIComponent(apiKey)}`);
-          const data = await res.json();
-          if (!data.success) return;
-
-          const op = data.data;
-          if (op.done) {
-            clearInterval(pollInterval);
-            if (op.response && op.response.assetId) {
-              badge.className = 'badge badge-accepted';
-              badge.textContent = '✅ Accepted';
-              assetIdEl.style.display = 'inline';
-              assetIdEl.textContent = `rbxassetid://${op.response.assetId}`;
-            } else if (op.error) {
-              badge.className = 'badge badge-rejected';
-              badge.textContent = '❌ Rejected';
-            } else {
-              badge.className = 'badge badge-accepted';
-              badge.textContent = '✅ Done';
-            }
-          }
-        } catch (_) {}
-      }, 3000);
-    }
-
-    // ── Preview ───────────────────────────────────────────────────────
-    async function handlePreview() {
-      const btn = document.getElementById('previewBtn');
-      btn.disabled = true;
-      showStatus('loading', 'Sedang convert audio... Tunggu ya!');
-      resetPlayer();
-
-      try {
-        let previewId;
-        const payload = getPayload();
-
-        if (currentTab === 'url') {
-          const url = document.getElementById('audioUrl').value.trim();
-          if (!url) { showStatus('error', 'URL wajib diisi!'); btn.disabled = false; return; }
-          const res = await fetch('/preview-url', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url, ...payload })
-          });
-          const data = await res.json();
-          if (!data.success) { showStatus('error', '❌ ' + data.error); btn.disabled = false; return; }
-          previewId = data.previewId;
-        } else {
-          const file = document.getElementById('mp3File').files[0];
-          if (!file) { showStatus('error', 'Pilih file MP3 dulu!'); btn.disabled = false; return; }
-          const form = new FormData();
-          form.append('file', file);
-          Object.entries(payload).forEach(([k, v]) => form.append(k, v));
-          const res = await fetch('/preview-mp3', { method: 'POST', body: form });
-          const data = await res.json();
-          if (!data.success) { showStatus('error', '❌ ' + data.error); btn.disabled = false; return; }
-          previewId = data.previewId;
-        }
-
-        document.getElementById('audioPlayer').src = `/preview/${previewId}`;
-        document.getElementById('playerBox').style.display = 'block';
-        document.getElementById('uploadBtn').style.display = 'block';
-        showStatus('success', '✅ Convert selesai! Dengerin dulu, kalau oke klik Upload.');
-      } catch (err) {
-        showStatus('error', '❌ Error: ' + err.message);
+  function addFiles(files) {
+    files.forEach(f => {
+      if (!selectedFiles.find(sf => sf.name === f.name && sf.size === f.size)) {
+        selectedFiles.push(f);
       }
-      btn.disabled = false;
+    });
+    renderFileList();
+    // Auto set nama dari file pertama kalau belum ada
+    if (selectedFiles.length === 1) {
+      const nameInput = document.getElementById('displayName');
+      nameInput.value = selectedFiles[0].name.replace(/\.[^/.]+$/, '');
+      nameInput.style.borderColor = '#00d4ff';
+    } else if (selectedFiles.length > 1) {
+      document.getElementById('displayName').value = '';
+      document.getElementById('displayName').placeholder = 'Nama otomatis dari tiap file';
+    }
+    resetPlayer();
+  }
+
+  function removeFile(idx) {
+    selectedFiles.splice(idx, 1);
+    renderFileList();
+    if (selectedFiles.length === 0) {
+      document.getElementById('displayName').placeholder = 'Nama audio di Roblox (auto detect)';
+    }
+  }
+
+  function renderFileList() {
+    const list = document.getElementById('fileList');
+    if (selectedFiles.length === 0) { list.innerHTML = ''; return; }
+    list.innerHTML = selectedFiles.map((f, i) => `
+      <div class="file-item">
+        <span class="file-item-name">🎵 ${f.name}</span>
+        <span class="file-item-remove" onclick="removeFile(${i})">✕</span>
+      </div>
+    `).join('');
+  }
+
+  // ── URL Title ──────────────────────────────────────────────────────
+  function onUrlInput(val) {
+    clearTimeout(titleDebounce);
+    const nameInput = document.getElementById('displayName');
+    nameInput.value = '';
+    nameInput.style.borderColor = '#333';
+    if (!val.includes('youtube.com') && !val.includes('youtu.be')) return;
+    document.getElementById('titleLoader').style.display = 'block';
+    titleDebounce = setTimeout(async () => {
+      try {
+        const res = await fetch('/get-title', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: val })
+        });
+        const data = await res.json();
+        if (data.success && data.title) {
+          nameInput.value = data.title;
+          nameInput.style.borderColor = '#00d4ff';
+        }
+      } catch (_) {}
+      document.getElementById('titleLoader').style.display = 'none';
+    }, 800);
+  }
+
+  // ── Speed ──────────────────────────────────────────────────────────
+  function applyPreset(speedFactor, amp) {
+    const robloxPlayback = (1 / speedFactor).toFixed(2);
+    document.getElementById('speedSlider').value = robloxPlayback;
+    document.getElementById('ampSlider').value = amp;
+    onSpeedSlider(robloxPlayback, false);
+    onAmpSlider(amp);
+    document.querySelectorAll('.preset-btn').forEach(b => {
+      b.classList.toggle('active', Math.abs(parseFloat(b.textContent) - speedFactor) < 0.05);
+    });
+    resetPlayer();
+  }
+
+  function onSpeedSlider(val, clearPreset = true) {
+    currentSpeed = parseFloat(val);
+    const speedUp = 1 / currentSpeed;
+    document.getElementById('speedDisplay').textContent = currentSpeed.toFixed(2) + 'x';
+    document.getElementById('infoPlayback').textContent = currentSpeed.toFixed(2) + 'x';
+    document.getElementById('infoSpeedUp').textContent = speedUp.toFixed(2) + 'x';
+    document.getElementById('tipSpeed').textContent = currentSpeed.toFixed(2);
+    if (clearPreset) document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    resetPlayer();
+  }
+
+  function onAmpSlider(val) {
+    currentAmp = parseFloat(val);
+    document.getElementById('ampDisplay').textContent = (currentAmp >= 0 ? '+' : '') + currentAmp + ' dB';
+    document.getElementById('infoAmp').textContent = (currentAmp >= 0 ? '+' : '') + currentAmp + ' dB';
+    resetPlayer();
+  }
+
+  function onDurSlider(val) {
+    currentDur = parseInt(val);
+    document.getElementById('durDisplay').textContent = currentDur + 's';
+    resetPlayer();
+  }
+
+  function toggleAsIs() {
+    const cb = document.getElementById('asIsToggle');
+    setTimeout(() => {
+      isAsIs = cb.checked;
+      document.getElementById('speedControls').classList.toggle('speed-dimmed', isAsIs);
+      resetPlayer();
+    }, 0);
+  }
+
+  // ── UI Helpers ─────────────────────────────────────────────────────
+  function showStatus(type, msg) {
+    const el = document.getElementById('status');
+    el.className = 'status ' + type;
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  function resetPlayer() {
+    document.getElementById('playerBox').style.display = 'none';
+    document.getElementById('uploadBtn').style.display = 'none';
+    document.getElementById('audioPlayer').src = '';
+  }
+
+  function getPayload() {
+    return { robloxPlayback: currentSpeed, asIs: isAsIs, amplify: currentAmp, maxDuration: currentDur };
+  }
+
+  // ── History Sidebar ────────────────────────────────────────────────
+  function addHistoryItem(name, operationId, speed, amp) {
+    const id = Date.now() + Math.random();
+    const item = { id, name, operationId, speed, amp, status: 'processing', assetId: null };
+    historyItems.unshift(item);
+    renderHistory();
+    if (operationId) startPollingItem(item);
+    return item;
+  }
+
+  function updateHistoryItem(id, updates) {
+    const item = historyItems.find(i => i.id === id);
+    if (item) { Object.assign(item, updates); renderHistory(); }
+  }
+
+  function renderHistory() {
+    const list = document.getElementById('historyList');
+    document.getElementById('historyCount').textContent = historyItems.length;
+
+    if (historyItems.length === 0) {
+      list.innerHTML = '<div class="sidebar-empty">Belum ada upload.<br>Upload audio untuk mulai tracking.</div>';
+      return;
     }
 
-    // ── Upload ────────────────────────────────────────────────────────
-    async function handleUpload() {
-      const userId = document.getElementById('userId').value.trim();
-      const apiKey = document.getElementById('apiKey').value.trim();
-      const displayName = document.getElementById('displayName').value.trim();
-      if (!userId || !apiKey) { showStatus('error', 'User ID dan API Key wajib diisi!'); return; }
+    list.innerHTML = historyItems.map(item => {
+      const statusClass = item.status === 'accepted' ? 'accepted' : item.status === 'rejected' ? 'rejected' : 'processing';
+      const badge = item.status === 'accepted'
+        ? '<span class="badge badge-accepted">✅ Accepted</span>'
+        : item.status === 'rejected'
+        ? '<span class="badge badge-rejected">❌ Rejected</span>'
+        : '<span class="badge badge-processing"><span class="spinner"></span> Processing</span>';
 
-      const btn = document.getElementById('uploadBtn');
-      btn.disabled = true;
-      showStatus('loading', 'Sedang upload ke Roblox...');
+      const assetIdHtml = item.assetId
+        ? `<div class="asset-id" onclick="copyText('rbxassetid://${item.assetId}')" title="Klik untuk copy">📋 rbxassetid://${item.assetId}</div>`
+        : '';
 
+      return `
+        <div class="history-item ${statusClass}">
+          <div class="history-title" title="${item.name}">${item.name}</div>
+          <div class="history-meta">
+            <div class="meta-tag">Speed <span>${item.speed}x</span></div>
+            <div class="meta-tag">Playback <span>${(1/item.speed).toFixed(2)}x</span></div>
+            <div class="meta-tag">Amp <span>${item.amp}dB</span></div>
+          </div>
+          <div class="history-status">${badge}</div>
+          ${assetIdHtml}
+        </div>
+      `;
+    }).join('');
+  }
+
+  function copyText(text) {
+    navigator.clipboard.writeText(text).then(() => {
+      showStatus('success', '✅ Copied: ' + text);
+    });
+  }
+
+  function startPollingItem(item) {
+    const apiKey = document.getElementById('apiKey').value.trim();
+    if (!apiKey || !item.operationId) return;
+
+    let attempts = 0;
+    const poll = setInterval(async () => {
+      attempts++;
+      if (attempts > 60) {
+        clearInterval(poll);
+        updateHistoryItem(item.id, { status: 'rejected' });
+        return;
+      }
       try {
-        const payload = getPayload();
-        let res;
-
-        if (currentTab === 'url') {
-          const url = document.getElementById('audioUrl').value.trim();
-          res = await fetch('/upload-url', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url, apiKey, userId, displayName, ...payload })
-          });
-        } else {
-          const file = document.getElementById('mp3File').files[0];
-          const form = new FormData();
-          form.append('file', file);
-          form.append('apiKey', apiKey);
-          form.append('userId', userId);
-          form.append('displayName', displayName);
-          Object.entries(payload).forEach(([k, v]) => form.append(k, v));
-          res = await fetch('/upload-mp3', { method: 'POST', body: form });
+        const res = await fetch(`/status/${item.operationId}?apiKey=${encodeURIComponent(apiKey)}`);
+        const data = await res.json();
+        if (!data.success) return;
+        const op = data.data;
+        if (op.done) {
+          clearInterval(poll);
+          if (op.response && op.response.assetId) {
+            updateHistoryItem(item.id, { status: 'accepted', assetId: op.response.assetId });
+          } else {
+            updateHistoryItem(item.id, { status: 'rejected' });
+          }
         }
+      } catch (_) {}
+    }, 3000);
+  }
 
+  // ── Preview ────────────────────────────────────────────────────────
+  async function handlePreview() {
+    const btn = document.getElementById('previewBtn');
+    btn.disabled = true;
+    showStatus('loading', 'Sedang convert audio... Tunggu ya!');
+    resetPlayer();
+
+    try {
+      let previewId;
+      const payload = getPayload();
+
+      if (currentTab === 'url') {
+        const url = document.getElementById('audioUrl').value.trim();
+        if (!url) { showStatus('error', 'URL wajib diisi!'); btn.disabled = false; return; }
+        const res = await fetch('/preview-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, ...payload })
+        });
+        const data = await res.json();
+        if (!data.success) { showStatus('error', '❌ ' + data.error); btn.disabled = false; return; }
+        previewId = data.previewId;
+      } else {
+        if (selectedFiles.length === 0) { showStatus('error', 'Pilih file MP3 dulu!'); btn.disabled = false; return; }
+        const file = selectedFiles[0];
+        const form = new FormData();
+        form.append('file', file);
+        Object.entries(payload).forEach(([k, v]) => form.append(k, v));
+        const res = await fetch('/preview-mp3', { method: 'POST', body: form });
+        const data = await res.json();
+        if (!data.success) { showStatus('error', '❌ ' + data.error); btn.disabled = false; return; }
+        previewId = data.previewId;
+      }
+
+      document.getElementById('audioPlayer').src = `/preview/${previewId}`;
+      document.getElementById('playerBox').style.display = 'block';
+      document.getElementById('uploadBtn').style.display = 'block';
+      showStatus('success', '✅ Convert selesai! Dengerin dulu, kalau oke klik Upload.');
+    } catch (err) {
+      showStatus('error', '❌ Error: ' + err.message);
+    }
+    btn.disabled = false;
+  }
+
+  // ── Upload ─────────────────────────────────────────────────────────
+  async function handleUpload() {
+    const userId = document.getElementById('userId').value.trim();
+    const apiKey = document.getElementById('apiKey').value.trim();
+    if (!userId || !apiKey) { showStatus('error', 'User ID dan API Key wajib diisi!'); return; }
+
+    const btn = document.getElementById('uploadBtn');
+    btn.disabled = true;
+
+    const payload = getPayload();
+    const speedFactor = 1 / currentSpeed;
+
+    if (currentTab === 'url') {
+      // Single upload dari URL
+      const url = document.getElementById('audioUrl').value.trim();
+      const displayName = document.getElementById('displayName').value.trim();
+      showStatus('loading', 'Sedang upload ke Roblox...');
+      try {
+        const res = await fetch('/upload-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, apiKey, userId, displayName, ...payload })
+        });
         const data = await res.json();
         if (data.success) {
-          const operationId = data.data.operationId;
-          showStatus('success', '✅ Upload berhasil! Menunggu review Roblox...');
-          if (operationId) startPolling(operationId, displayName);
+          showStatus('success', '✅ Upload berhasil! Tracking di sidebar...');
+          addHistoryItem(displayName || 'YouTube Audio', data.data.operationId, parseFloat(speedFactor.toFixed(2)), currentAmp);
         } else {
           showStatus('error', '❌ Gagal: ' + data.error);
         }
       } catch (err) {
         showStatus('error', '❌ Error: ' + err.message);
       }
-      btn.disabled = false;
+    } else {
+      // Multi upload dari file
+      if (selectedFiles.length === 0) { showStatus('error', 'Pilih file MP3 dulu!'); btn.disabled = false; return; }
+      showStatus('loading', `Mengupload ${selectedFiles.length} file...`);
+
+      let successCount = 0;
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        const displayName = selectedFiles.length === 1
+          ? (document.getElementById('displayName').value.trim() || file.name.replace(/\.[^/.]+$/, ''))
+          : file.name.replace(/\.[^/.]+$/, '');
+
+        showStatus('loading', `Uploading ${i + 1}/${selectedFiles.length}: ${displayName}`);
+
+        try {
+          const form = new FormData();
+          form.append('file', file);
+          form.append('apiKey', apiKey);
+          form.append('userId', userId);
+          form.append('displayName', displayName);
+          Object.entries(payload).forEach(([k, v]) => form.append(k, v));
+
+          const res = await fetch('/upload-mp3', { method: 'POST', body: form });
+          const data = await res.json();
+
+          if (data.success) {
+            successCount++;
+            addHistoryItem(displayName, data.data.operationId, parseFloat(speedFactor.toFixed(2)), currentAmp);
+          }
+        } catch (_) {}
+      }
+
+      showStatus('success', `✅ ${successCount}/${selectedFiles.length} file berhasil diupload! Tracking di sidebar.`);
     }
 
+    btn.disabled = false;
+  }
 
-    // ── Credentials ───────────────────────────────────────────────────
-    function saveCredentials() {
-      localStorage.setItem('roblox_userId', document.getElementById('userId').value);
-      localStorage.setItem('roblox_apiKey', document.getElementById('apiKey').value);
-    }
-
-    function loadCredentials() {
-      const userId = localStorage.getItem('roblox_userId');
-      const apiKey = localStorage.getItem('roblox_apiKey');
-      if (userId) document.getElementById('userId').value = userId;
-      if (apiKey) document.getElementById('apiKey').value = apiKey;
-    }
-
-    // Init
-    applyPreset(2.3, -4);
-    loadCredentials();
-  </script>
+  // ── Init ───────────────────────────────────────────────────────────
+  applyPreset(2.3, -4);
+  loadCredentials();
+  renderHistory();
+</script>
 </body>
 </html>
