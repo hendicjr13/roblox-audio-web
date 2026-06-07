@@ -683,11 +683,11 @@
         const res = await fetch(`/moderation/${assetId}?apiKey=${encodeURIComponent(apiKey)}`);
         const data = await res.json();
         if (!data.success) return;
-        const decision = data.data?.moderationResult?.decision;
-        if (decision === 'APPROVED') {
+        const moderationState = data.data?.moderationResult?.moderationState;
+        if (moderationState === 'Approved') {
           clearInterval(pollMod);
           updateHistoryItem(itemId, { status: 'approved' });
-        } else if (decision === 'REJECTED') {
+        } else if (moderationState === 'Rejected') {
           clearInterval(pollMod);
           updateHistoryItem(itemId, { status: 'rejected_moderation' });
         }
