@@ -258,6 +258,20 @@
 
     .name-input-wrap { position: relative; }
     .name-input-wrap .loading-dot { position: absolute; right: 12px; top: 50%; transform: translateY(-65%); width: 8px; height: 8px; border: 2px solid #00d4ff44; border-top-color: #00d4ff; border-radius: 50%; animation: spin 0.8s linear infinite; display: none; }
+
+    /* Permission Form */
+    .perm-form { margin-top: 10px; border-top: 1px solid #222; padding-top: 10px; }
+    .perm-form-title { font-size: 0.75rem; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+    .perm-input-row { display: flex; gap: 6px; margin-bottom: 6px; }
+    .perm-input { flex: 1; padding: 7px 10px; background: #111; border: 1px solid #333; border-radius: 6px; color: #fff; font-size: 0.8rem; }
+    .perm-input::placeholder { color: #555; }
+    .perm-select { padding: 7px 10px; background: #111; border: 1px solid #333; border-radius: 6px; color: #fff; font-size: 0.8rem; }
+    .perm-btn { padding: 7px 12px; background: #00d4ff; color: #000; border: none; border-radius: 6px; font-size: 0.8rem; font-weight: bold; cursor: pointer; white-space: nowrap; }
+    .perm-btn:hover { background: #00b8d9; }
+    .perm-btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+    .perm-status { font-size: 0.78rem; margin-top: 4px; display: none; padding: 6px 8px; border-radius: 6px; }
+    .perm-status.success { background: #0d2e1a; color: #00ff88; }
+    .perm-status.error { background: #2e0d0d; color: #ff4444; }
   </style>
 </head>
 <body>
@@ -617,6 +631,28 @@
         ? `<div class="asset-id" onclick="copyText('rbxassetid://${item.assetId}')" title="Klik untuk copy">📋 rbxassetid://${item.assetId}</div>`
         : '';
 
+      const permForm = item.status === 'approved' && item.assetId ? `
+        <div class="perm-form">
+          <div class="perm-form-title">🔐 Set Permission</div>
+          <div class="perm-input-row">
+            <select class="perm-select" id="permType_${item.assetId}">
+              <option value="user">User</option>
+              <option value="group">Group</option>
+            </select>
+            <input class="perm-input" id="permId_${item.assetId}" type="text"
+              placeholder="User/Group ID"
+              value="${getPermId()}"
+              oninput="savePermId(this.value)">
+            <select class="perm-select" id="permLevel_${item.assetId}">
+              <option value="Use">Use</option>
+              <option value="Edit">Edit</option>
+            </select>
+          </div>
+          <button class="perm-btn" id="permBtn_${item.assetId}" onclick="setPermission('${item.assetId}')">Set</button>
+          <div class="perm-status" id="permStatus_${item.assetId}"></div>
+        </div>
+      ` : '';
+
       return `
         <div class="history-item ${getItemClass(item)}">
           <div class="history-title" title="${item.name}">${item.name}</div>
@@ -627,6 +663,7 @@
           </div>
           <div class="history-status">${getBadge(item)}</div>
           ${assetIdHtml}
+          ${permForm}
         </div>
       `;
     }).join('');
@@ -808,6 +845,62 @@
       showStatus('success', `✅ ${successCount}/${selectedFiles.length} file berhasil diupload! Tracking di sidebar.`);
     }
 
+    btn.disabled = false;
+  }
+
+  // ── Permissions ────────────────────────────────────────────────────
+  function getPermId() {
+    return localStorage.getItem('perm_id') || '';
+  }
+
+  function savePermId(val) {
+    localStorage.setItem('perm_id', val);
+  }
+
+  async function setPermission(assetId) {
+    const apiKey = document.getElementById('apiKey').value.trim();
+    const permType = document.getElementById(`permType_${assetId}`).value;
+    const permId = document.getElementById(`permId_${assetId}`).value.trim();
+    const permLevel = document.getElementById(`permLevel_${assetId}`).value;
+    const btn = document.getElementById(`permBtn_${assetId}`);
+    const statusEl = document.getElementById(`permStatus_${assetId}`);
+
+    if (!permId) {
+      statusEl.className = 'perm-status error';
+      statusEl.textContent = 'ID wajib diisi!';
+      statusEl.style.display = 'block';
+      return;
+    }
+
+    btn.disabled = true;
+    statusEl.className = 'perm-status';
+    statusEl.textContent = 'Setting permission...';
+    statusEl.style.display = 'block';
+
+    try {
+      const permission = permType === 'user'
+        ? { subjectType: 'User', subjectId: permId, action: permLevel }
+        : { subjectType: 'Group', subjectId: permId, action: permLevel };
+
+      const res = await fetch(`/permissions/${assetId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey, permissions: [permission] })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        statusEl.className = 'perm-status success';
+        statusEl.textContent = '✅ Permission berhasil di-set!';
+        savePermId(permId);
+      } else {
+        statusEl.className = 'perm-status error';
+        statusEl.textContent = '❌ ' + data.error;
+      }
+    } catch (err) {
+      statusEl.className = 'perm-status error';
+      statusEl.textContent = '❌ Error: ' + err.message;
+    }
     btn.disabled = false;
   }
 
