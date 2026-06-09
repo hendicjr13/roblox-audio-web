@@ -87,8 +87,6 @@ async function downloadYoutube(url, outputPath) {
 
   const baseArgs = [
     '-x',
-    '--audio-format', 'best',
-    '--audio-quality', '0',
     '--no-playlist',
     '--no-warnings',
     '-o', outputPath,
