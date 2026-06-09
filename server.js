@@ -73,44 +73,52 @@ async function getYoutubeTitle(url) {
 }
 
 async function downloadYoutube(url, outputPath) {
-  const https = require('https');
-  const http = require('http');
+  const { spawn } = require('child_process');
 
-  console.log('Cobalt: requesting download URL...');
-  const cobaltRes = await axios.post(
-    'https://cobalt-production-571e.up.railway.app/',
-    { url, downloadMode: 'audio', audioFormat: 'best', filenameStyle: 'basic', alwaysProxy: true },
-    { headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' }, timeout: 30000 }
-  );
+  console.log('yt-dlp: downloading', url);
 
-  const cobaltData = cobaltRes.data;
-  console.log('Cobalt status:', cobaltData?.status);
+  // Coba player clients secara berurutan sampai berhasil
+  const playerClients = ['tv', 'web_creator', 'mweb', 'android'];
 
-  if (!cobaltData.url) throw new Error('Cobalt error: ' + (cobaltData.error?.code || JSON.stringify(cobaltData)));
+  for (const client of playerClients) {
+    console.log(`yt-dlp: trying player_client=${client}`);
+    const success = await new Promise((resolve) => {
+      const proc = spawn('yt-dlp', [
+        '-x',
+        '--audio-format', 'mp3',
+        '--audio-quality', '0',
+        '--no-playlist',
+        '--no-warnings',
+        '--extractor-args', `youtube:player_client=${client}`,
+        '-o', outputPath,
+        url
+      ]);
 
-  return new Promise((resolve, reject) => {
-    const writer = fs.createWriteStream(outputPath);
-    const makeRequest = (reqUrl) => {
-      const lib = reqUrl.startsWith('https') ? https : http;
-      lib.get(reqUrl, { headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': '*/*' } }, (res) => {
-        console.log('Download status:', res.statusCode, 'content-type:', res.headers['content-type']);
-        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          makeRequest(res.headers.location);
-          return;
+      let stderr = '';
+      proc.stderr.on('data', d => { stderr += d.toString(); });
+      proc.stdout.on('data', d => { console.log('yt-dlp:', d.toString().trim()); });
+      proc.on('close', code => {
+        if (code === 0 && fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) {
+          console.log(`yt-dlp: success with client=${client}, size=${fs.statSync(outputPath).size}`);
+          resolve(true);
+        } else {
+          console.log(`yt-dlp: failed with client=${client}, code=${code}`);
+          if (stderr) console.log('yt-dlp stderr:', stderr.slice(-200));
+          // Hapus file gagal kalau ada
+          if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+          resolve(false);
         }
-        res.pipe(writer);
-        writer.on('finish', () => {
-          const size = fs.statSync(outputPath).size;
-          console.log('Downloaded file size:', size, 'bytes');
-          if (size === 0) reject(new Error('Downloaded file kosong'));
-          else resolve();
-        });
-        writer.on('error', reject);
-        res.on('error', reject);
-      }).on('error', reject);
-    };
-    makeRequest(cobaltData.url);
-  });
+      });
+      proc.on('error', (err) => {
+        console.log('yt-dlp spawn error:', err.message);
+        resolve(false);
+      });
+    });
+
+    if (success) return;
+  }
+
+  throw new Error('yt-dlp gagal dengan semua player clients');
 }
 
 async function uploadToRoblox(filePath, apiKey, userId, displayName) {
