@@ -75,24 +75,35 @@ async function getYoutubeTitle(url) {
 async function downloadYoutube(url, outputPath) {
   const { spawn } = require('child_process');
 
+  // Tulis cookies ke file temp kalau ada di env
+  let cookiesFile = null;
+  if (process.env.YOUTUBE_COOKIES) {
+    cookiesFile = path.join(TMP, 'yt_cookies.txt');
+    fs.writeFileSync(cookiesFile, process.env.YOUTUBE_COOKIES);
+    console.log('yt-dlp: using cookies from env');
+  }
+
   console.log('yt-dlp: downloading', url);
 
-  // Coba player clients secara berurutan sampai berhasil
+  const baseArgs = [
+    '-x',
+    '--audio-format', 'mp3',
+    '--audio-quality', '0',
+    '--no-playlist',
+    '--no-warnings',
+    '-o', outputPath,
+  ];
+
+  if (cookiesFile) baseArgs.push('--cookies', cookiesFile);
+
+  // Coba player clients secara berurutan
   const playerClients = ['tv', 'web_creator', 'mweb', 'android'];
 
   for (const client of playerClients) {
     console.log(`yt-dlp: trying player_client=${client}`);
     const success = await new Promise((resolve) => {
-      const proc = spawn('yt-dlp', [
-        '-x',
-        '--audio-format', 'mp3',
-        '--audio-quality', '0',
-        '--no-playlist',
-        '--no-warnings',
-        '--extractor-args', `youtube:player_client=${client}`,
-        '-o', outputPath,
-        url
-      ]);
+      const args = [...baseArgs, '--extractor-args', `youtube:player_client=${client}`, url];
+      const proc = spawn('yt-dlp', args);
 
       let stderr = '';
       proc.stderr.on('data', d => { stderr += d.toString(); });
@@ -104,7 +115,6 @@ async function downloadYoutube(url, outputPath) {
         } else {
           console.log(`yt-dlp: failed with client=${client}, code=${code}`);
           if (stderr) console.log('yt-dlp stderr:', stderr.slice(-200));
-          // Hapus file gagal kalau ada
           if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
           resolve(false);
         }
