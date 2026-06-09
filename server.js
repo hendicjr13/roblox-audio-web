@@ -107,9 +107,26 @@ async function downloadYoutube(url, outputPath) {
       proc.stderr.on('data', d => { stderr += d.toString(); });
       proc.stdout.on('data', d => { console.log('yt-dlp:', d.toString().trim()); });
       proc.on('close', code => {
-        if (code === 0 && fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) {
-          console.log(`yt-dlp: success with client=${client}, size=${fs.statSync(outputPath).size}`);
-          resolve(true);
+        if (code === 0) {
+          // yt-dlp bisa nambahin ekstensi otomatis, cari file yang ada
+          const possibleExts = ['', '.m4a', '.webm', '.opus', '.mp3', '.ogg'];
+          let foundPath = null;
+          for (const ext of possibleExts) {
+            const p = outputPath + ext;
+            if (fs.existsSync(p) && fs.statSync(p).size > 0) {
+              foundPath = p;
+              break;
+            }
+          }
+          if (foundPath) {
+            // Rename ke outputPath yang diharapkan
+            if (foundPath !== outputPath) fs.renameSync(foundPath, outputPath);
+            console.log(`yt-dlp: success with client=${client}, size=${fs.statSync(outputPath).size}`);
+            resolve(true);
+          } else {
+            console.log(`yt-dlp: file not found after download, client=${client}`);
+            resolve(false);
+          }
         } else {
           console.log(`yt-dlp: failed with client=${client}, code=${code}`);
           if (stderr) console.log('yt-dlp stderr:', stderr.slice(-200));
