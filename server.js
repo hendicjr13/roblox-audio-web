@@ -284,5 +284,23 @@ app.get('/moderation/:assetId', async (req, res) => {
   }
 });
 
+// Set asset permissions
+app.post('/permissions/:assetId', async (req, res) => {
+  try {
+    const { apiKey, permissions } = req.body;
+    if (!apiKey) return res.status(400).json({ error: 'apiKey required' });
+
+    const result = await axios.patch(
+      `https://apis.roblox.com/assets/v1/assets/${req.params.assetId}/permissions`,
+      { requests: permissions },
+      { headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' } }
+    );
+    res.json({ success: true, data: result.data });
+  } catch (err) {
+    console.log('Permission error:', err.response?.data || err.message);
+    res.status(500).json({ success: false, error: err.response?.data?.message || err.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
