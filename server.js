@@ -28,6 +28,15 @@ const previews = {};
 
 console.log('Audio engine: atempo (optimized)');
 
+// Log yt-dlp version
+const { execSync: execSyncVersion } = require('child_process');
+try {
+  const ytdlpVersion = execSyncVersion('yt-dlp --version', { encoding: 'utf8' }).trim();
+  console.log('yt-dlp version:', ytdlpVersion);
+} catch (_) {
+  console.log('yt-dlp version: unknown');
+}
+
 function buildAudioFilters(speedMultiplier, amplifyDb) {
   const filters = [];
   filters.push(`asetrate=44100*${speedMultiplier.toFixed(4)}`);
