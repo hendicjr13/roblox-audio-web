@@ -822,6 +822,23 @@
     const payload = getPayload();
     const speedFactor = 1 / currentSpeed;
 
+    // Reset form setelah upload
+    function resetForm() {
+      if (currentTab === 'url') {
+        document.getElementById('audioUrl').value = '';
+        document.getElementById('displayName').value = '';
+        document.getElementById('displayName').style.borderColor = '#333';
+      } else {
+        selectedFiles = [];
+        renderFileList();
+        document.getElementById('mp3File').value = '';
+        document.getElementById('displayName').value = '';
+        document.getElementById('displayName').style.borderColor = '#333';
+        document.getElementById('displayName').placeholder = 'Nama audio di Roblox (auto detect)';
+      }
+      resetPlayer();
+    }
+
     if (currentTab === 'url') {
       // Single upload dari URL
       const url = document.getElementById('audioUrl').value.trim();
@@ -837,6 +854,7 @@
         if (data.success) {
           showStatus('success', '✅ Upload berhasil! Tracking di sidebar...');
           addHistoryItem(displayName || 'YouTube Audio', data.data.operationId, parseFloat(speedFactor.toFixed(2)), currentAmp);
+          resetForm();
         } else {
           showStatus('error', '❌ Gagal: ' + data.error);
         }
@@ -876,6 +894,7 @@
       }
 
       showStatus('success', `✅ ${successCount}/${selectedFiles.length} file berhasil diupload! Tracking di sidebar.`);
+      if (successCount > 0) resetForm();
     }
 
     btn.disabled = false;
