@@ -311,8 +311,9 @@ app.post('/permissions/:assetId', async (req, res) => {
     console.log('Permission result:', JSON.stringify(result.data));
     res.json({ success: true, data: result.data });
   } catch (err) {
-    console.log('Permission error:', err.response?.data || err.message);
-    res.status(500).json({ success: false, error: err.response?.data?.message || err.message });
+    console.log('Permission error full:', JSON.stringify(err.response?.data));
+    console.log('Permission status:', err.response?.status);
+    res.status(500).json({ success: false, error: err.response?.data?.message || JSON.stringify(err.response?.data) || err.message });
   }
 });
 
