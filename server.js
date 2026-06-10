@@ -100,7 +100,7 @@ async function downloadYoutube(url, outputPath) {
   for (const client of playerClients) {
     console.log(`yt-dlp: trying player_client=${client}`);
     const success = await new Promise((resolve) => {
-      const args = [...baseArgs, '--extractor-args', `youtube:player_client=${client}`, url];
+      const args = [...baseArgs, '--extractor-args', `youtube:player_client=${client}`, '-v', url];
       const proc = spawn('yt-dlp', args);
 
       let stderr = '';
