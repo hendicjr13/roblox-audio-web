@@ -287,14 +287,28 @@ app.get('/moderation/:assetId', async (req, res) => {
 // Set asset permissions
 app.post('/permissions/:assetId', async (req, res) => {
   try {
-    const { apiKey, permissions } = req.body;
+    const { apiKey, subjectType, subjectId, action } = req.body;
     if (!apiKey) return res.status(400).json({ error: 'apiKey required' });
 
-    const result = await axios.patch(
-      `https://apis.roblox.com/assets/v1/assets/${req.params.assetId}/permissions`,
-      { requests: permissions },
+    const payload = {
+      requests: [
+        {
+          subjectType: subjectType || 'User', // User atau Group
+          subjectId: String(subjectId),
+          action: action || 'Use',
+          assetId: String(req.params.assetId),
+        }
+      ]
+    };
+
+    console.log('Permission payload:', JSON.stringify(payload));
+
+    const result = await axios.post(
+      'https://apis.roblox.com/asset-permissions/v1/assets/permissions',
+      payload,
       { headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' } }
     );
+    console.log('Permission result:', JSON.stringify(result.data));
     res.json({ success: true, data: result.data });
   } catch (err) {
     console.log('Permission error:', err.response?.data || err.message);
